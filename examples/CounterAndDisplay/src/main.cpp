@@ -2,16 +2,16 @@
 #include "LoraMesher.h"
 #include "display.h"
 
-//Using LILYGO TTGO T-BEAM v1.1 
-#define BOARD_LED   4
-#define LED_ON      LOW
-#define LED_OFF     HIGH
+// Heltec V3
+#define BOARD_LED   35
+#define LED_ON      HIGH
+#define LED_OFF     LOW
 
 LoraMesher& radio = LoraMesher::getInstance();
 
 uint32_t dataCounter = 0;
 struct dataPacket {
-    uint32_t counter[35] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34};
+    uint32_t counter[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 };
 
 dataPacket* helloPacket = new dataPacket;
@@ -65,7 +65,7 @@ void printDataPacket(AppPacket<dataPacket>* packet) {
         Serial.printf("Received data nº %d", i);
         Serial.printf("%d -- ", i);
 
-        for (size_t j = 0; j < 35; j++) {
+        for (size_t j = 0; j < 10; j++) {
             Serial.printf("%d, ", dPacket[i].counter[j]);
 
         }
@@ -129,13 +129,13 @@ void setupLoraMesher() {
     //Get the configuration of the LoRaMesher
     LoraMesher::LoraMesherConfig config = LoraMesher::LoraMesherConfig();
 
-    //Set the configuration of the LoRaMesher (TTGO T-BEAM v1.1)
-    config.loraCs = 18;
-    config.loraRst = 23;
-    config.loraIrq = 26;
-    config.loraIo1 = 33;
+    // Heltec V3
+    config.loraCs  = 8;
+    config.loraRst = 12;
+    config.loraIrq = 14;
+    config.loraIo1 = 13;
 
-    config.module = LoraMesher::LoraModules::SX1276_MOD;
+    config.module = LoraMesher::LoraModules::SX1262_MOD;
 
     //Init the loramesher with a configuration
     radio.begin(config);
@@ -202,7 +202,7 @@ void sendLoRaMessage(void*) {
 
     for (;;) {
         if (radio.routingTableSize() == 0) {
-            vTaskDelay(120000 / portTICK_PERIOD_MS);
+            vTaskDelay(20000 / portTICK_PERIOD_MS);
             continue;
         }
 
@@ -224,7 +224,7 @@ void sendLoRaMessage(void*) {
         Screen.changeLineTwo("Send " + String(dataCounter));
 
         //Increment data counter
-        helloPacket->counter[0] = dataCounter++;
+        helloPacket->counter[0] = ++dataCounter;
 
         //Print routing Table to Display
         printRoutingTableToDisplay();
@@ -233,7 +233,7 @@ void sendLoRaMessage(void*) {
         delete routingTableList;
 
         //Wait 20 seconds to send the next packet
-        vTaskDelay(120000 / portTICK_PERIOD_MS);
+        vTaskDelay(20000 / portTICK_PERIOD_MS);
     }
 }
 
@@ -257,6 +257,9 @@ void createSendMessages() {
 }
 
 void setup() {
+    // Heltec V3
+    Wire.begin(17, 18);
+
     Serial.begin(115200);
     pinMode(BOARD_LED, OUTPUT); //setup pin as output for indicator LED
 

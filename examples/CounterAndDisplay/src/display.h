@@ -8,7 +8,7 @@
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
-#define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+#define OLED_RESET    21 // Reset pin # (or -1 if sharing Arduino reset pin)
 
 class Display {
 public:
@@ -23,7 +23,7 @@ public:
     void changeSizeRouting(int size);
 
 private:
-    Adafruit_SSD1306 display = Adafruit_SSD1306(SCREEN_WIDTH, SCREEN_HEIGHT);
+    Adafruit_SSD1306 display = Adafruit_SSD1306(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
     TaskHandle_t Display_TaskHandle = NULL;
 
     void changeLine(String str, int pos, int& x, int& minX, int size, bool& move);

@@ -193,17 +193,21 @@ void RoutingTableService::printRoutingTable() {
 
     routingTableList->setInUse();
 
+    uint32_t now = millis();
+
     if (routingTableList->moveToStart()) {
         size_t position = 0;
 
         do {
             RouteNode* node = routingTableList->getCurrent();
 
-            ESP_LOGI(LM_TAG, "%d - %X via %X metric %d Role %d", position,
+            ESP_LOGI(LM_TAG, "%d - %X via %X metric %d Role %d SNR %3d timeout %ds", position,
                 node->networkNode.address,
                 node->via,
                 node->networkNode.metric,
-                node->networkNode.role);
+                node->networkNode.role,
+                node->networkNode.metric == 1 ? node->receivedSNR : -99,
+                (int32_t)(node->timeout - now) / 1000);
 
             position++;
         } while (routingTableList->next());

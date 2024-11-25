@@ -1,6 +1,6 @@
 from calendar import c
 from enum import IntFlag
-from asyncio.windows_events import NULL
+#from asyncio.windows_events import None
 import os
 import threading
 import time
@@ -11,6 +11,7 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 import itertools
+import re
 
 headerPacketSize = 6
 dataPacketSize = 2
@@ -143,13 +144,13 @@ class Node:
 
     def getAddr(self):
         for line in open(self.fileName):
-            if 'WiFi MAC' in line:
-                self.address = line[-5:-1]
-                return
+#            if 'WiFi MAC' in line:
+#                self.address = line[-5:-1]
+#                return
 
-            if '> Packet send' in line and 'Type: 100' in line:
+            if 'Packet send --' in line and 'Type: 4' in line:
                 lineList = LineList(line.split(" "))
-                self.address = lineList.getNextValue("Src:")[2:]
+                self.address = lineList.getNextValue("Src:")
                 return
 
     def addPacketQueue(self, line, packetQueueOrder, lineNum):
@@ -158,7 +159,7 @@ class Node:
         date = tryParseDate(line[0])
         numToSend = getNextNum(lineList)
 
-        if NULL in (date, numToSend):
+        if None in (date, numToSend):
             printError(self.fileName, lineNum)
 
         packetQueue = PacketList(packetQueueOrder, date, numToSend)
@@ -184,7 +185,7 @@ class Node:
         dst = findDst(lineList)
         id = findId(lineList)
 
-        if NULL in (date, typeP):
+        if None in (date, typeP):
             printError(self.fileName, lineNum)
             return False
 
@@ -216,13 +217,14 @@ class Node:
             except:
                 continue
 
+            line = re.sub(r"\[\s*(\d+)\]", r"[\1]", line)
             listLine = line.split(" ")
 
             if 'Receiving LoRa packet' in line:
                 self.allPacketsNum += 1
                 continue
 
-            if '> Packet ' in line:
+            if 'Packet send --' in line or 'Packet received --' in line:
                 self.createPacketAndSave(listLine, index)
 
             if '> E:' in line:
@@ -239,10 +241,16 @@ def printError(fileName, lineNum):
 
 def tryParseDate(date) -> str:
     try:
-        s = datetime.strptime(date, '%H:%M:%S.%f').strftime('%H:%M:%S.%f')
-        return s[:-3]
+        #s = datetime.strptime(date, '%H:%M:%S.%f').strftime('%H:%M:%S.%f')
+        #return s[:-3]
+        m = re.match(r"^\[(\d+)\]", date)
+        if m:
+            ms = int(m[1])
+            return datetime.fromtimestamp(ms//1000)
+        else:
+            return None
     except:
-        return NULL
+        return None
 
 
 def tryParseDateTime(date) -> datetime:
@@ -250,7 +258,7 @@ def tryParseDateTime(date) -> datetime:
         s = datetime.strptime(date, '%H:%M:%S.%f')
         return s
     except:
-        return NULL
+        return None
 
 
 def periodStr(dateMinStr, dateMaxStr):
@@ -261,14 +269,14 @@ def periodStr(dateMinStr, dateMaxStr):
         strDiv = str(div)
         return strDiv[:-3]
     except:
-        return NULL
+        return None
 
 
 def getNextNum(lineList) -> int:
     try:
         return int(lineList.getNextValue("Queue:"), 10)
     except:
-        return NULL
+        return None
 
 
 def findIsSend(lineList) -> bool:
@@ -279,56 +287,56 @@ def findId(lineList) -> int:
     try:
         return int(lineList.getNextValue("Id:"), 10)
     except:
-        return NULL
+        return None
 
 
 def findType(lineList) -> int:
     try:
-        return int(lineList.getNextValue("Type:"), 2)
+        return int(lineList.getNextValue("Type:"), 10)
     except:
-        return NULL
+        return None
 
 
 def findSize(lineList) -> int:
     try:
         return int(lineList.getNextValue("Size:"), base=10)
     except:
-        return NULL
+        return None
 
 
 def findDst(lineList) -> hex:
     try:
         return hex(int(lineList.getNextValue("Dst:"), base=16))
     except:
-        return NULL
+        return None
 
 
 def findSrc(lineList) -> hex:
     try:
         return hex(int(lineList.getNextValue("Src:"), base=16))
     except:
-        return NULL
+        return None
 
 
 def findVia(lineList) -> hex:
     try:
         return hex(int(lineList.getNextValue("Via:"), base=16))
     except:
-        return NULL
+        return None
 
 
 def findSeqId(lineList) -> int:
     try:
         return int(lineList.getNextValue("Seq_Id:"), base=10)
     except:
-        return NULL
+        return None
 
 
 def findNum(lineList) -> int:
     try:
         return int(lineList.getNextValue("Num:"), base=10)
     except:
-        return NULL
+        return None
 
 
 class LineList(list):
@@ -355,7 +363,9 @@ def init():
     for root, dirs, files in os.walk("."):
         if(root == "."):
             for filename in files:
-                if (filename.__contains__("monitor") and filename.__contains__(".txt") and filename.__contains__("COM")):
+                #if (filename.__contains__("monitor") and filename.__contains__(".txt") and filename.__contains__("COM")):
+                if filename.endswith(".log"):
+                    print("Loading:", filename)
                     nodes.append(Node(filename))
 
 
@@ -508,8 +518,8 @@ def showPlot():
     allPackets = []
     [allPackets.extend(node.allPackets) for node in nodes]
 
-    for packet in allPackets:
-        packet["time"] = tryParseDateTime(packet["time"])
+#    for packet in allPackets:
+#        packet["time"] = tryParseDateTime(packet["time"])
 
     allPackets.sort(key=lambda x: x["time"], reverse=False)
 
@@ -518,7 +528,7 @@ def showPlot():
     receivedPackets = list(
         filter(lambda p: p["isSend"] == "False", allPackets))
 
-    for index, packet in enumerate(sendPackets):
+    for index, packet in enumerate(sendPackets[::100]):
         color = np.random.rand(3,)
         plt.scatter(packet["time"], index, color=color, s=100)
         previousTime = packet["time"]-timedelta(microseconds=15)
@@ -533,14 +543,14 @@ def showPlot():
                     previousTime = packetI["time"]
                     margin = 0
 
-                plt.scatter(packetI["time"], index + margin * 0.5, color=color)
-                plt.text(packetI["time"], index + margin *
-                         0.5 + 0.1, packetI["deviceId"])
+#                plt.scatter(packetI["time"], index + margin * 0.5, color=color)
+#                plt.text(packetI["time"], index + margin *
+#                         0.5 + 0.1, packetI["deviceId"])
 
                 numReceiveds += 1
 
-        plt.text(packet["time"], index-0.7,
-                 "SId: " + packet["deviceId"] + " NºR: " + str(numReceiveds) + " T: " + str(packet["type"]))
+#        plt.text(packet["time"], index-0.7,
+#                 "SId: " + packet["deviceId"] + " NºR: " + str(numReceiveds) + " T: " + str(packet["type"]))
 
     allErrors = []
     [allErrors.extend(node.allErrors) for node in nodes]
@@ -593,9 +603,9 @@ def plotPacketSendQueue():
             if prevTime == "":
                 prevTime = queueEl.time
 
-            queueEl.time = tryParseDateTime(queueEl.time)
-            if queueEl.time > datetime(year=1900, month=1, day=1, hour=21, minute=25):
-                continue
+#            queueEl.time = tryParseDateTime(queueEl.time)
+#            if queueEl.time > datetime(year=1900, month=1, day=1, hour=21, minute=25):
+#                continue
             if queueEl.time.hour == 0 and prevTime.hour == 23:
                 dateDay += 1
 
@@ -634,6 +644,9 @@ if __name__ == '__main__':
         for trs in threads:
             trs.join()
 
+        for node in nodes:
+            print(node.fileName, node.address, len(node.txPackets), len(node.rxPackets), len(node.allPackets))
+
         saveCv()
 
         printGeneralInfo()
@@ -641,8 +654,8 @@ if __name__ == '__main__':
         showPlot()
         plotPacketSendQueue()
 
-        while True:
-            time.sleep(1)
+#        while True:
+#            time.sleep(1)
     except KeyboardInterrupt:
         pass
     finally:

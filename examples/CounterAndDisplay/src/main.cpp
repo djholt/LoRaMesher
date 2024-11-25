@@ -9,12 +9,16 @@
 
 LoraMesher& radio = LoraMesher::getInstance();
 
+#define PAYLOAD_CHARS 32
+
 uint32_t dataCounter = 0;
 struct dataPacket {
-    uint32_t counter[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    int32_t counter = -1;
+    char message[PAYLOAD_CHARS];
 };
 
 dataPacket* helloPacket = new dataPacket;
+dataPacket* userPacket = new dataPacket;
 
 /**
  * @brief Flash the lead
@@ -37,12 +41,10 @@ void led_Flash(uint16_t flashes, uint16_t delaymS) {
  *
  * @param data
  */
-void printPacket(dataPacket* data, uint16_t sourceAddress) {
+void printPacketToScreen(dataPacket* data, uint16_t sourceAddress) {
     char text[32];
-    snprintf(text, 32, ("%X-> %d\n"), sourceAddress, data->counter[0]);
-
+    snprintf(text, 32, ("%X-> %d\n"), sourceAddress, data->counter);
     Screen.changeLineThree(String(text));
-    Serial.printf("Received data nº %d\n", data->counter[0]);
 }
 
 /**
@@ -51,28 +53,19 @@ void printPacket(dataPacket* data, uint16_t sourceAddress) {
  * @param packet
  */
 void printDataPacket(AppPacket<dataPacket>* packet) {
-    Serial.printf("Packet arrived from %X with size %d bytes\n", packet->src, packet->payloadSize);
-
     //Get the payload to iterate through it
     dataPacket* dPacket = packet->payload;
     size_t payloadLength = packet->getPayloadLength();
 
-    printPacket(&dPacket[0], packet->src);
+    Serial.printf("Packet arrived from %X with length %d and size %d bytes\n", packet->src, payloadLength, packet->payloadSize);
+    printPacketToScreen(&dPacket[0], packet->src);
 
-    Serial.printf("---- Payload ---- Payload length in dataP: %d \n", payloadLength);
-
+    Serial.println("---- Payload ----");
     for (size_t i = 0; i < payloadLength; i++) {
-        Serial.printf("Received data nº %d", i);
-        Serial.printf("%d -- ", i);
-
-        for (size_t j = 0; j < 10; j++) {
-            Serial.printf("%d, ", dPacket[i].counter[j]);
-
-        }
-        Serial.println();
+        dataPacket data = dPacket[i];
+        Serial.printf("Packet part %d: %d => %s\n", i, data.counter, data.message);
     }
-
-    Serial.println("---- Payload Done ---- ");
+    Serial.println("---- Payload Done ----");
 }
 
 /**
@@ -217,6 +210,10 @@ void sendLoRaMessage(void*) {
 
         dataTablePosition++;
 
+        helloPacket->counter = dataCounter;
+        strncpy(helloPacket->message, "<HELLO>", sizeof(helloPacket->message)-1);
+        helloPacket->message[sizeof(helloPacket->message)-1] = '\0';
+
         //Create packet and send it.
         radio.createPacketAndSend(addr, helloPacket, 1);
 
@@ -224,7 +221,7 @@ void sendLoRaMessage(void*) {
         Screen.changeLineTwo("Send " + String(dataCounter));
 
         //Increment data counter
-        helloPacket->counter[0] = ++dataCounter;
+        ++dataCounter;
 
         //Print routing Table to Display
         printRoutingTableToDisplay();
@@ -256,6 +253,68 @@ void createSendMessages() {
     }
 }
 
+void sendUserPacket(uint32_t recipientAddr, char *recipientPayload) {
+    LM_LinkedList<RouteNode> *routingTableList = radio.routingTableListCopy();
+    routingTableList->setInUse();
+
+    for (int i = 0; i < radio.routingTableSize(); i++) {
+        RouteNode *rNode = (*routingTableList)[i];
+        NetworkNode node = rNode->networkNode;
+        if (node.address == recipientAddr) {
+            Serial.printf("Sending packet to %X via %X with payload: %s\n", node.address, rNode->via, recipientPayload);
+            strncpy(userPacket->message, recipientPayload, sizeof(userPacket->message)-1);
+            userPacket->message[sizeof(userPacket->message)-1] = '\0';
+            radio.createPacketAndSend(node.address, userPacket, 1);
+        }
+    }
+
+    routingTableList->releaseInUse();
+    delete routingTableList;
+}
+
+const byte serialRxBufferSize = 255;
+char serialRxBuffer[serialRxBufferSize];
+boolean serialRxDataReceived = false;
+
+void receiveSerialData() {
+    static byte i = 0;
+    char recv;
+
+    while (Serial.available() > 0 && serialRxDataReceived == false) {
+        recv = Serial.read();
+
+        if (recv == '\n') {
+            serialRxBuffer[i] = '\0';
+            i = 0;
+            serialRxDataReceived = true;
+        } else {
+            serialRxBuffer[i] = recv;
+            i++;
+            if (i >= serialRxBufferSize) {
+                i = serialRxBufferSize - 1;
+            }
+        }
+    }
+}
+
+void processSerialInput() {
+    if (serialRxDataReceived) {
+        Serial.print("Received: ");
+        Serial.println(serialRxBuffer);
+        serialRxDataReceived = false;
+
+        char *separator = strchr(serialRxBuffer, ':');
+        if (separator != 0) {
+            *separator = '\0';
+            uint32_t recipientAddr = strtoul(serialRxBuffer, NULL, 16);
+            char *recipientPayload = ++separator;
+            sendUserPacket(recipientAddr, recipientPayload);
+        } else if (strcmp(serialRxBuffer, "routes") == 0) {
+            RoutingTableService::printRoutingTable();
+        }
+    }
+}
+
 void setup() {
     // Heltec V3
     Wire.begin(17, 18);
@@ -274,5 +333,7 @@ void setup() {
 }
 
 void loop() {
+    receiveSerialData();
+    processSerialInput();
     Screen.drawDisplay();
 }

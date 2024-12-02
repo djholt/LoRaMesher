@@ -187,7 +187,7 @@ void printRoutingTableToDisplay() {
 }
 
 /**
- * @brief Every 20 seconds it will send a counter to a position of the dataTable
+ * @brief Every 300 seconds it will send a counter to a position of the dataTable
  *
  */
 void sendLoRaMessage(void*) {
@@ -195,7 +195,7 @@ void sendLoRaMessage(void*) {
 
     for (;;) {
         if (radio.routingTableSize() == 0) {
-            vTaskDelay(20000 / portTICK_PERIOD_MS);
+            vTaskDelay(300000 / portTICK_PERIOD_MS);
             continue;
         }
 
@@ -229,8 +229,8 @@ void sendLoRaMessage(void*) {
         //Release routing table list usage.
         delete routingTableList;
 
-        //Wait 20 seconds to send the next packet
-        vTaskDelay(20000 / portTICK_PERIOD_MS);
+        //Wait 300 seconds to send the next packet
+        vTaskDelay(300000 / portTICK_PERIOD_MS);
     }
 }
 

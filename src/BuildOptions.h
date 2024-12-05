@@ -109,4 +109,6 @@ extern const char* LM_VERSION;
 // Define if is testing
 // #define LM_TESTING
 
+#define SNR_QUALITY_THRESHOLD -15
+
 #endif

@@ -76,6 +76,11 @@ void RoutingTableService::processRoute(RoutePacket* p, int8_t receivedSNR) {
     size_t numNodes = p->getNetworkNodesSize();
     ESP_LOGI(LM_TAG, "Route packet from %X with size %d", p->src, numNodes);
 
+    if (receivedSNR < SNR_QUALITY_THRESHOLD) {
+        ESP_LOGI(LM_TAG, "Ignoring route packet from %X: SNR %d does not meet threshold requirement %d", p->src, receivedSNR, SNR_QUALITY_THRESHOLD);
+        return;
+    }
+
     NetworkNode* receivedNode = new NetworkNode(p->src, 1, p->nodeRole);
     processRoute(p->src, receivedNode);
     delete receivedNode;

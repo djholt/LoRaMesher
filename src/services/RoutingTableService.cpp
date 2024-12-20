@@ -126,6 +126,11 @@ void RoutingTableService::processRoute(uint16_t via, NetworkNode* node) {
         else if (node->metric == rNode->networkNode.metric) {
             //Reset the timeout, only when the metric is the same as the actual route.
             resetTimeoutRoutingNode(rNode);
+
+            // if current via is not in the routing table (it expired), update via to this route
+            if (findNode(rNode->via) == nullptr) {
+                rNode->via = via;
+            }
         }
 
         // Update the Role only if the node that sent the packet is the next hop

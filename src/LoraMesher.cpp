@@ -542,13 +542,8 @@ void LoraMesher::sendPackets() {
                     DataPacket *dataPacket = reinterpret_cast<DataPacket*>(tx->packet);
 
                     if (ENABLE_FLOODING) {
-                        if (packetHistory.wasSeen(dataPacket)) {
-                            ESP_LOGE(LM_TAG, "Packet has already been seen: dropping packet");
-                            PacketQueueService::deleteQueuePacketAndPacket(tx);
-                            continue;
-                        }
                         if (dataPacket->hops > FLOOD_MAX_HOPS) {
-                            ESP_LOGE(LM_TAG, "Packet hops count exceeded limit: %d/%d: dropping packet", dataPacket->hops, FLOOD_MAX_HOPS);
+                            ESP_LOGI(LM_TAG, "Packet hops count exceeded limit: %d/%d: dropping packet", dataPacket->hops, FLOOD_MAX_HOPS);
                             PacketQueueService::deleteQueuePacketAndPacket(tx);
                             continue;
                         }
@@ -869,7 +864,11 @@ void LoraMesher::processDataPacket(QueuePacket<DataPacket>* pq) {
 
     ESP_LOGI(LM_TAG, "Data packet from %X, destination %X, via %X", packet->src, packet->dst, packet->via);
 
-    if (packet->dst == getLocalAddress()) {
+    if (packetHistory.wasSeen(dataPacket)) {
+        ESP_LOGI(LM_TAG, "Packet has already been seen: dropping packet");
+        return;
+    }
+    else if (packet->dst == getLocalAddress()) {
         ESP_LOGV(LM_TAG, "Data packet from %X for me", packet->src);
         incDataPacketForMe();
 

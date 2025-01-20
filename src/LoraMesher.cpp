@@ -864,7 +864,7 @@ void LoraMesher::processDataPacket(QueuePacket<DataPacket>* pq) {
 
     ESP_LOGI(LM_TAG, "Data packet from %X, destination %X, via %X", packet->src, packet->dst, packet->via);
 
-    if (packetHistory.wasSeen(dataPacket)) {
+    if (packetHistory.wasSeen(packet)) {
         ESP_LOGI(LM_TAG, "Packet has already been seen: dropping packet");
         return;
     }

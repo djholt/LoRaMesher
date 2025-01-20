@@ -329,7 +329,7 @@ void setup() {
     led_Flash(2, 125);          //two quick LED flashes to indicate program start
     setupLoraMesher();
     printAddressDisplay();
-    createSendMessages();
+    //createSendMessages();
 }
 
 void loop() {

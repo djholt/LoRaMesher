@@ -111,4 +111,7 @@ extern const char* LM_VERSION;
 
 #define SNR_QUALITY_THRESHOLD -30
 
+#define ENABLE_FLOODING 1
+#define FLOOD_MAX_HOPS 5
+
 #endif

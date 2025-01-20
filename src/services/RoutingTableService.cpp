@@ -50,6 +50,10 @@ bool RoutingTableService::hasAddressRoutingTable(uint16_t address) {
 }
 
 uint16_t RoutingTableService::getNextHop(uint16_t dst) {
+    if (ENABLE_FLOODING) {
+        return BROADCAST_ADDR;
+    }
+
     RouteNode* node = findNode(dst);
 
     if (node == nullptr)

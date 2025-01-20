@@ -141,6 +141,7 @@ DataPacket* PacketService::createDataPacket(uint16_t dst, uint16_t src, uint8_t 
     packet->dst = dst;
     packet->src = src;
     packet->type = type;
+    packet->hops = 0;
     packet->packetSize = payloadSize + sizeof(DataPacket);
 
     return packet;

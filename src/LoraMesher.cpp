@@ -539,7 +539,18 @@ void LoraMesher::sendPackets() {
                         continue;
                     }
 
-                    (reinterpret_cast<DataPacket*>(tx->packet))->via = nextHop;
+                    DataPacket *dataPacket = reinterpret_cast<DataPacket*>(tx->packet);
+
+                    if (ENABLE_FLOODING) {
+                        if (dataPacket->hops > FLOOD_MAX_HOPS) {
+                            ESP_LOGE(LM_TAG, "Packet hops count exceeded limit: %d/%d: dropping packet", dataPacket->hops, FLOOD_MAX_HOPS);
+                            PacketQueueService::deleteQueuePacketAndPacket(tx);
+                            continue;
+                        }
+                        dataPacket->hops += 1;
+                    }
+
+                    dataPacket->via = nextHop;
                 }
 
                 recordState(LM_StateType::STATE_TYPE_SENT, tx->packet);
@@ -871,6 +882,11 @@ void LoraMesher::processDataPacket(QueuePacket<DataPacket>* pq) {
     else if (packet->via == getLocalAddress()) {
         ESP_LOGV(LM_TAG, "Data Packet from %X for %X. Via is me. Forwarding it", packet->src, packet->dst);
         incReceivedIAmVia();
+        addToSendOrderedAndNotify(reinterpret_cast<QueuePacket<Packet<uint8_t>>*>(pq));
+        return;
+    }
+    else if (ENABLE_FLOODING && packet->via == BROADCAST_ADDR) {
+        ESP_LOGV(LM_TAG, "Data Packet from %X for %X. Via is broadcast. Flooding!", packet->src, packet->dst);
         addToSendOrderedAndNotify(reinterpret_cast<QueuePacket<Packet<uint8_t>>*>(pq));
         return;
     }

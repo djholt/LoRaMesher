@@ -1,5 +1,7 @@
 #!/bin/bash
 
+mkdir -p logs
+
 echo "Building firmware..."
 pio run
 
@@ -17,3 +19,6 @@ wait
 
 echo "Opening serial on all nodes..."
 curl -s -o /dev/null -H 'Content-Type: application/json' -d '{ "op": "serial_open" }' https://mesh.holt.dj/nodes/admin
+
+echo "UPLOAD RESULTS:"
+tail -n 1 logs/upload_*.log

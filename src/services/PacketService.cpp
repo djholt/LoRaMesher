@@ -137,12 +137,17 @@ ControlPacket* PacketService::createEmptyControlPacket(uint16_t dst, uint16_t sr
 }
 
 DataPacket* PacketService::createDataPacket(uint16_t dst, uint16_t src, uint8_t type, uint8_t* payload, uint8_t payloadSize) {
+    static uint32_t lastPacketId = 0;
+
     DataPacket* packet = PacketFactory::createPacket<DataPacket>(payload, payloadSize);
     packet->dst = dst;
     packet->src = src;
     packet->type = type;
     packet->hops = 0;
+    packet->id = ++lastPacketId;
     packet->packetSize = payloadSize + sizeof(DataPacket);
+
+    ESP_LOGV(LM_TAG, "Creating data packet with ID %d", packet->id);
 
     return packet;
 }

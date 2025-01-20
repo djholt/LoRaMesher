@@ -494,7 +494,7 @@ void LoraMesher::sendPackets() {
     vTaskSuspend(NULL);
 
     int sendCounter = 0;
-    uint8_t sendId = 0;
+    //uint8_t sendId = 0;
     uint8_t resendMessage = 0;
 
 #ifdef ARDUINO
@@ -524,8 +524,8 @@ void LoraMesher::sendPackets() {
             if (tx) {
                 ESP_LOGV(LM_TAG, "Send n. %d", sendCounter);
 
-                if (tx->packet->src == getLocalAddress())
-                    tx->packet->id = sendId++;
+                //if (tx->packet->src == getLocalAddress())
+                    //tx->packet->id = sendId++;
 
                 //If the packet has a data packet and its destination is not broadcast add the via to the packet and forward the packet
                 if (PacketService::isDataPacket(tx->packet->type) && tx->packet->dst != BROADCAST_ADDR) {
@@ -542,6 +542,11 @@ void LoraMesher::sendPackets() {
                     DataPacket *dataPacket = reinterpret_cast<DataPacket*>(tx->packet);
 
                     if (ENABLE_FLOODING) {
+                        if (packetHistory.wasSeen(dataPacket)) {
+                            ESP_LOGE(LM_TAG, "Packet has already been seen: dropping packet");
+                            PacketQueueService::deleteQueuePacketAndPacket(tx);
+                            continue;
+                        }
                         if (dataPacket->hops > FLOOD_MAX_HOPS) {
                             ESP_LOGE(LM_TAG, "Packet hops count exceeded limit: %d/%d: dropping packet", dataPacket->hops, FLOOD_MAX_HOPS);
                             PacketQueueService::deleteQueuePacketAndPacket(tx);

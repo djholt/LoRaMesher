@@ -113,5 +113,6 @@ extern const char* LM_VERSION;
 
 #define ENABLE_FLOODING 1
 #define FLOOD_MAX_HOPS 5
+#define MAX_HISTORY_NODES 100
 
 #endif

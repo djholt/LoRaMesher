@@ -23,6 +23,8 @@
 
 #include "services/SimulatorService.h"
 
+#include "services/PacketHistory.h"
+
 /**
  * @brief LoRaMesher Library
  *
@@ -696,6 +698,8 @@ private:
      * @param appPq App packet
      */
     void notifyUserReceivedPacket(AppPacket<uint8_t>* appPq);
+
+    PacketHistory packetHistory = PacketHistory();
 
     /**
      * @brief Send a packet through Lora

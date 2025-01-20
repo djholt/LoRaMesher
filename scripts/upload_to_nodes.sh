@@ -5,6 +5,11 @@ mkdir -p logs
 echo "Building firmware..."
 pio run
 
+if [[ $? -ne 0 ]]; then
+  echo "Aborting: build failed!"
+  exit 1
+fi
+
 echo "Closing serial on all nodes..."
 curl -s -o /dev/null -H 'Content-Type: application/json' -d '{ "op": "serial_close" }' https://mesh.holt.dj/nodes/admin
 

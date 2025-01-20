@@ -100,6 +100,7 @@ RoutePacket* PacketService::createRoutingPacket(uint16_t localAddress, NetworkNo
     routePacket->dst = BROADCAST_ADDR;
     routePacket->src = localAddress;
     routePacket->type = HELLO_P;
+    routePacket->id = 0;
     routePacket->packetSize = routingSizeInBytes + sizeof(RoutePacket);
     routePacket->nodeRole = nodeRole;
 
@@ -119,6 +120,7 @@ ControlPacket* PacketService::createControlPacket(uint16_t dst, uint16_t src, ui
     packet->dst = dst;
     packet->src = src;
     packet->type = type;
+    packet->id = 0;
     packet->packetSize = payloadSize + sizeof(ControlPacket);
 
     return packet;
@@ -129,6 +131,7 @@ ControlPacket* PacketService::createEmptyControlPacket(uint16_t dst, uint16_t sr
     packet->dst = dst;
     packet->src = src;
     packet->type = type;
+    packet->id = 0;
     packet->seq_id = seq_id;
     packet->number = num_packets;
     packet->packetSize = sizeof(ControlPacket);

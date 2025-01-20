@@ -868,6 +868,10 @@ void LoraMesher::processDataPacket(QueuePacket<DataPacket>* pq) {
         ESP_LOGI(LM_TAG, "Packet has already been seen: dropping packet");
         return;
     }
+    else if (packet->src == getLocalAddress()) {
+        ESP_LOGI(LM_TAG, "Packet is originally from me: dropping packet");
+        return;
+    }
     else if (packet->dst == getLocalAddress()) {
         ESP_LOGV(LM_TAG, "Data packet from %X for me", packet->src);
         incDataPacketForMe();

@@ -10,7 +10,7 @@ public:
     uint16_t src = 0;
     uint8_t type = 0;
     //TODO: REMOVE THIS ID
-    uint8_t id;
+    uint16_t id;
     uint8_t packetSize = 0;
 
     /**

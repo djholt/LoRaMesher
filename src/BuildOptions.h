@@ -110,5 +110,6 @@ extern const char* LM_VERSION;
 // #define LM_TESTING
 
 #define SNR_QUALITY_THRESHOLD -30
+#define MAX_HISTORY_NODES 100
 
 #endif

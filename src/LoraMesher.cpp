@@ -1,3 +1,4 @@
+#include "RoutingProtocol.h"
 #include "LoraMesher.h"
 
 #ifndef ARDUINO
@@ -7,6 +8,11 @@
 LoraMesher::LoraMesher() {}
 
 void LoraMesher::begin(LoraMesherConfig config) {
+    if (config.protocol == RoutingProtocols::DISTANCE_VECTOR_ROUTING) {
+        RoutingManager = new VectorRouting(&LoraMesher::getInstance());
+    } else if (config.protocol == RoutingProtocols::FLOODING_ROUTING) {
+        RoutingManager = new FloodingRouting(&LoraMesher::getInstance());
+    }
     ESP_LOGV(LM_TAG, "Initializing LoraMesher v%s", LM_VERSION);
 
     // Set the configuration
@@ -85,6 +91,8 @@ LoraMesher::~LoraMesher() {
     delete ReceivedPackets;
     ReceivedAppPackets->Clear();
     delete ReceivedAppPackets;
+
+    delete RoutingManager;
 
     clearDioActions();
     radio->reset();
@@ -494,8 +502,8 @@ void LoraMesher::sendPackets() {
     vTaskSuspend(NULL);
 
     int sendCounter = 0;
-    uint8_t sendId = 0;
     uint8_t resendMessage = 0;
+    // uint8_t sendId = 0;
 
 #ifdef ARDUINO
     randomSeed(getLocalAddress());
@@ -524,23 +532,27 @@ void LoraMesher::sendPackets() {
             if (tx) {
                 ESP_LOGV(LM_TAG, "Send n. %d", sendCounter);
 
-                if (tx->packet->src == getLocalAddress())
-                    tx->packet->id = sendId++;
+                // if (tx->packet->src == getLocalAddress())
+                //     tx->packet->id = sendId++;
+
+                if (!RoutingManager->routeBeforeSend(tx)) {
+                    continue;
+                }
 
                 //If the packet has a data packet and its destination is not broadcast add the via to the packet and forward the packet
-                if (PacketService::isDataPacket(tx->packet->type) && tx->packet->dst != BROADCAST_ADDR) {
-                    uint16_t nextHop = RoutingTableService::getNextHop(tx->packet->dst);
+                // if (PacketService::isDataPacket(tx->packet->type) && tx->packet->dst != BROADCAST_ADDR) {
+                //     uint16_t nextHop = RoutingTableService::getNextHop(tx->packet->dst);
 
-                    //Next hop not found
-                    if (nextHop == 0) {
-                        ESP_LOGE(LM_TAG, "NextHop Not found from %X, destination %X", tx->packet->src, tx->packet->dst);
-                        PacketQueueService::deleteQueuePacketAndPacket(tx);
-                        incDestinyUnreachable();
-                        continue;
-                    }
+                //     //Next hop not found
+                //     if (nextHop == 0) {
+                //         ESP_LOGE(LM_TAG, "NextHop Not found from %X, destination %X", tx->packet->src, tx->packet->dst);
+                //         PacketQueueService::deleteQueuePacketAndPacket(tx);
+                //         incDestinyUnreachable();
+                //         continue;
+                //     }
 
-                    (reinterpret_cast<DataPacket*>(tx->packet))->via = nextHop;
-                }
+                //     (reinterpret_cast<DataPacket*>(tx->packet))->via = nextHop;
+                // }
 
                 recordState(LM_StateType::STATE_TYPE_SENT, tx->packet);
 
@@ -851,33 +863,46 @@ void LoraMesher::processDataPacket(QueuePacket<DataPacket>* pq) {
 
     incReceivedDataPackets();
 
-    ESP_LOGI(LM_TAG, "Data packet from %X, destination %X, via %X", packet->src, packet->dst, packet->via);
+    ESP_LOGI(LM_TAG, "Data packet from %X, destination %X, via %X, hops remain %d", packet->src, packet->dst, packet->via, packet->hops);
 
-    if (packet->dst == getLocalAddress()) {
+    if (packetHistory.wasSeen(packet)) {
+        ESP_LOGI(LM_TAG, "Packet has already been seen: dropping packet");
+        PacketQueueService::deleteQueuePacketAndPacket(pq);
+        return;
+    } else if (packet->dst == getLocalAddress()) {
         ESP_LOGV(LM_TAG, "Data packet from %X for me", packet->src);
         incDataPacketForMe();
-
         processDataPacketForMe(pq);
         return;
-
-    }
-    else if (packet->dst == BROADCAST_ADDR) {
+    } else if (packet->src == getLocalAddress()) {
+        ESP_LOGI(LM_TAG, "Packet is originally from me: dropping packet");
+        incReceivedNotForMe();
+        PacketQueueService::deleteQueuePacketAndPacket(pq);
+    } else if (packet->dst == BROADCAST_ADDR) {
         ESP_LOGV(LM_TAG, "Data packet from %X BROADCAST", packet->src);
         incReceivedBroadcast();
         processDataPacketForMe(pq);
-        return;
-
+    } else {
+        RoutingManager->routeDataPacket(pq);
     }
-    else if (packet->via == getLocalAddress()) {
-        ESP_LOGV(LM_TAG, "Data Packet from %X for %X. Via is me. Forwarding it", packet->src, packet->dst);
-        incReceivedIAmVia();
-        addToSendOrderedAndNotify(reinterpret_cast<QueuePacket<Packet<uint8_t>>*>(pq));
-        return;
-    }
+    // This was the original LoraMesher implemetation
+    // else if (packet->dst == BROADCAST_ADDR) {
+    //     ESP_LOGV(LM_TAG, "Data packet from %X BROADCAST", packet->src);
+    //     incReceivedBroadcast();
+    //     processDataPacketForMe(pq);
+    //     return;
 
-    ESP_LOGV(LM_TAG, "Packet not for me, deleting it");
-    incReceivedNotForMe();
-    PacketQueueService::deleteQueuePacketAndPacket(pq);
+    // }
+    // else if (packet->via == getLocalAddress()) {
+    //     ESP_LOGV(LM_TAG, "Data Packet from %X for %X. Via is me. Forwarding it", packet->src, packet->dst);
+    //     incReceivedIAmVia();
+    //     addToSendOrderedAndNotify(reinterpret_cast<QueuePacket<Packet<uint8_t>>*>(pq));
+    //     return;
+    // }
+
+    // ESP_LOGV(LM_TAG, "Packet not for me, deleting it");
+    // incReceivedNotForMe();
+    // PacketQueueService::deleteQueuePacketAndPacket(pq);
 }
 
 void LoraMesher::processDataPacketForMe(QueuePacket<DataPacket>* pq) {

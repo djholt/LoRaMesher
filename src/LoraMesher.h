@@ -23,6 +23,10 @@
 
 #include "services/SimulatorService.h"
 
+#include "services/PacketHistory.h"
+
+class RoutingProtocol;
+
 /**
  * @brief LoRaMesher Library
  *
@@ -48,6 +52,11 @@ public:
         SX1280_MOD,
     };
 
+    enum RoutingProtocols {
+        DISTANCE_VECTOR_ROUTING,
+        FLOODING_ROUTING,
+    };
+
     /**
      * @brief LoRaMesher configuration
      *
@@ -58,6 +67,10 @@ public:
         uint8_t loraIrq = 0; // LoRa IRQ pin
         uint8_t loraRst = 0; // LoRa reset pin
         uint8_t loraIo1 = 0; // LoRa DIO1 pin
+
+        // Routing Configs
+        RoutingProtocols protocol = RoutingProtocols::DISTANCE_VECTOR_ROUTING; // Routing protocol used by node. Allowed options are listed in RoutingProtocols enum.
+        uint8_t maxHops = 5; // Max hop limit of Flooding.
 
         // LoRa configuration
         LoraModules module = LoraModules::SX1276_MOD; // Define the module to be used. Allowed values are in the BuildOptions.h file. By default is SX1276_MOD
@@ -250,7 +263,13 @@ public:
         ESP_LOGV(LM_TAG, "Creating a packet for send with %d bytes", payloadSizeInBytes);
 
         //Create a data packet with the payload
-        DataPacket* dPacket = PacketService::createDataPacket(dst, getLocalAddress(), DATA_P, reinterpret_cast<uint8_t*>(payload), payloadSizeInBytes);
+        DataPacket* dPacket = PacketService::createDataPacket(dst, getLocalAddress(), DATA_P, reinterpret_cast<uint8_t*>(payload), payloadSizeInBytes, getConfig().maxHops);
+
+        //If flooding, set the via to BROADCAST_ADDR
+        // TODO -- Find a better place for this assignment (PacketService.cpp)
+        if (getConfig().protocol == RoutingProtocols::FLOODING_ROUTING) {
+            dPacket->via = BROADCAST_ADDR;
+        }
 
         //Create the packet and set it to the send queue
         setPackedForSend(reinterpret_cast<Packet<uint8_t>*>(dPacket), DEFAULT_PRIORITY);
@@ -494,6 +513,9 @@ private:
      */
     LoraMesherConfig* loraMesherConfig = new LoraMesherConfig();
 
+    // TODO -- Make configurable based on user selection
+    RoutingProtocol* RoutingManager;
+
     LM_LinkedList<AppPacket<uint8_t>>* ReceivedAppPackets = new LM_LinkedList<AppPacket<uint8_t>>();
 
     LM_LinkedList<QueuePacket<Packet<uint8_t>>>* ReceivedPackets = new LM_LinkedList<QueuePacket<Packet<uint8_t>>>();
@@ -588,7 +610,7 @@ private:
      * @brief Region Monitoring variables
      *
      */
-
+public:
     uint32_t receivedDataPacketsNum = 0;
     void incReceivedDataPackets() { receivedDataPacketsNum++; }
 
@@ -630,7 +652,7 @@ private:
 
     uint32_t sentControlBytes = 0;
     void incSentControlBytes(uint32_t numBytes) { sentControlBytes += numBytes; }
-
+private:
     /**
      * @brief Function that process the packets inside Received Packets
      * Task executed every time that a packet arrive.
@@ -662,14 +684,14 @@ private:
         addToSendOrderedAndNotify(send);
         //TODO: Using vTaskDelay to kill the packet inside LoraMesher
     }
-
+public:
     /**
      * @brief Add the Queue packet into the ToSendPackets and notify the SendData Task Handle
      *
      * @param qp
      */
     void addToSendOrderedAndNotify(QueuePacket<Packet<uint8_t>>* qp);
-
+private:
     /**
      * @brief Notify the QueueManager_TaskHandle that a new sequence has been started
      *
@@ -696,6 +718,8 @@ private:
      * @param appPq App packet
      */
     void notifyUserReceivedPacket(AppPacket<uint8_t>* appPq);
+
+    PacketHistory packetHistory = PacketHistory();
 
     /**
      * @brief Send a packet through Lora

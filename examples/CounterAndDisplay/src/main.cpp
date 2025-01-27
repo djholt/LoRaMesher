@@ -10,6 +10,7 @@
 LoraMesher& radio = LoraMesher::getInstance();
 
 #define PAYLOAD_CHARS 32
+#define FLOODING_MAX_HOPS 5
 
 uint32_t dataCounter = 0;
 struct dataPacket {
@@ -121,6 +122,10 @@ void createReceiveMessages() {
 void setupLoraMesher() {
     //Get the configuration of the LoRaMesher
     LoraMesher::LoraMesherConfig config = LoraMesher::LoraMesherConfig();
+
+    // Routing
+    config.protocol = LoraMesher::RoutingProtocols::FLOODING_ROUTING;
+    config.maxHops = FLOODING_MAX_HOPS;
 
     // Heltec V3
     config.loraCs  = 8;
@@ -329,7 +334,7 @@ void setup() {
     led_Flash(2, 125);          //two quick LED flashes to indicate program start
     setupLoraMesher();
     printAddressDisplay();
-    createSendMessages();
+    // createSendMessages();
 }
 
 void loop() {

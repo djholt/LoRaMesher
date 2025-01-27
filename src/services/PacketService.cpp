@@ -99,6 +99,7 @@ RoutePacket* PacketService::createRoutingPacket(uint16_t localAddress, NetworkNo
     RoutePacket* routePacket = PacketFactory::createPacket<RoutePacket>(reinterpret_cast<uint8_t*>(nodes), routingSizeInBytes);
     routePacket->dst = BROADCAST_ADDR;
     routePacket->src = localAddress;
+    routePacket->fwd = 0;
     routePacket->type = HELLO_P;
     routePacket->id = 0;
     routePacket->packetSize = routingSizeInBytes + sizeof(RoutePacket);
@@ -119,6 +120,7 @@ ControlPacket* PacketService::createControlPacket(uint16_t dst, uint16_t src, ui
     ControlPacket* packet = PacketFactory::createPacket<ControlPacket>(payload, payloadSize);
     packet->dst = dst;
     packet->src = src;
+    packet->fwd = 0;
     packet->type = type;
     packet->id = 0;
     packet->packetSize = payloadSize + sizeof(ControlPacket);
@@ -130,6 +132,7 @@ ControlPacket* PacketService::createEmptyControlPacket(uint16_t dst, uint16_t sr
     ControlPacket* packet = PacketFactory::createPacket<ControlPacket>(0, 0);
     packet->dst = dst;
     packet->src = src;
+    packet->fwd = 0;
     packet->type = type;
     packet->id = 0;
     packet->seq_id = seq_id;
@@ -145,6 +148,7 @@ DataPacket* PacketService::createDataPacket(uint16_t dst, uint16_t src, uint8_t 
     DataPacket* packet = PacketFactory::createPacket<DataPacket>(payload, payloadSize);
     packet->dst = dst;
     packet->src = src;
+    packet->fwd = 0;
     packet->type = type;
     packet->hops = maxHops;
     packet->id = ++lastPacketId;

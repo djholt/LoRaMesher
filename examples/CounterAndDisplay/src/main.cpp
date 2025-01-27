@@ -311,9 +311,23 @@ void processSerialInput() {
         char *separator = strchr(serialRxBuffer, ':');
         if (separator != 0) {
             *separator = '\0';
-            uint32_t recipientAddr = strtoul(serialRxBuffer, NULL, 16);
-            char *recipientPayload = ++separator;
-            sendUserPacket(recipientAddr, recipientPayload);
+            if (strcmp(serialRxBuffer, "denyadd") == 0) {
+                char *addrStr = ++separator;
+                uint16_t addr = strtoul(addrStr, NULL, 16);
+                radio.addNodeToDenyList(addr);
+            } else if (strcmp(serialRxBuffer, "denyrm") == 0) {
+                char *addrStr = ++separator;
+                uint16_t addr = strtoul(addrStr, NULL, 16);
+                radio.removeNodeFromDenyList(addr);
+            } else {
+                uint16_t recipientAddr = strtoul(serialRxBuffer, NULL, 16);
+                char *recipientPayload = ++separator;
+                sendUserPacket(recipientAddr, recipientPayload);
+            }
+        } else if (strcmp(serialRxBuffer, "denyls") == 0) {
+            radio.printDenyList();
+        } else if (strcmp(serialRxBuffer, "denyclear") == 0) {
+            radio.clearDenyList();
         } else if (strcmp(serialRxBuffer, "routes") == 0) {
             RoutingTableService::printRoutingTable();
         }

@@ -25,6 +25,8 @@
 
 #include "services/PacketHistory.h"
 
+#include <vector>
+
 class RoutingProtocol;
 
 /**
@@ -1045,14 +1047,59 @@ private:
     void recordState(LM_StateType type, Packet<uint8_t>* packet = nullptr);
 
 #ifdef LM_TESTING
+
+    /**
+     * @brief List of node IDs that this node refuses to receive from
+     *
+     */
+    std::vector<uint16_t> receiveDenyList;
+
+    /**
+     * @brief Returns true if the node ID is in the receiveDenyList
+     *
+     * @param address The address of the node to check
+     * @return true The node is in receiveDenyList
+     * @return false The node is not in receiveDenyList
+     */
+    bool isNodeInDenyList(uint16_t address);
+
+public:
+    /**
+     * @brief Adds the node ID to the receiveDenyList
+     *
+     * @param address The address of the node to add
+     */
+    void addNodeToDenyList(uint16_t address);
+
+    /**
+     * @brief Removes the node ID from the receiveDenyList
+     *
+     * @param address The address of the node to remove
+     */
+    void removeNodeFromDenyList(uint16_t address);
+
+    /**
+     * @brief Removes all node IDs from the receiveDenyList
+     *
+     */
+    void clearDenyList();
+
+    /**
+     * @brief Prints all node IDs in the receiveDenyList
+     *
+     */
+    void printDenyList();
+
+private:
     /**
      * @brief Returns if the packet can be received. Only for testing
      *
-     * @param source The source of the packet
+     * @param src The source of the packet
+     * @param fwd The fwd of the packet
      * @return true The packet can be received
      * @return false The packet will be dropped
      */
-    bool canReceivePacket(uint16_t source);
+    bool canReceivePacket(uint16_t src, uint16_t fwd);
 
     /**
      * @brief Returns if is a data packet and the via is the local address. Only for testing
@@ -1073,7 +1120,6 @@ private:
     bool shouldProcessPacket(Packet<uint8_t>* packet);
 
 #endif
-
 
 public:
 

@@ -1,5 +1,6 @@
 #include "RoutingProtocol.h"
 #include "LoraMesher.h"
+#include <algorithm>
 
 #ifndef ARDUINO
 #include "EspHal.h"
@@ -539,6 +540,8 @@ void LoraMesher::sendPackets() {
                     continue;
                 }
 
+                tx->packet->fwd = getLocalAddress();
+
                 //If the packet has a data packet and its destination is not broadcast add the via to the packet and forward the packet
                 // if (PacketService::isDataPacket(tx->packet->type) && tx->packet->dst != BROADCAST_ADDR) {
                 //     uint16_t nextHop = RoutingTableService::getNextHop(tx->packet->dst);
@@ -667,7 +670,7 @@ void LoraMesher::processPackets() {
 #ifdef LM_TESTING
                 if (!shouldProcessPacket(rx->packet)) {
                     PacketQueueService::deleteQueuePacketAndPacket(rx);
-                    ESP_LOGV(LM_TAG, "TESTING: Packet not for me, deleting it");
+                    ESP_LOGI(LM_TAG, "Packet refused: dropping packet");
                     continue;
                 }
 #endif
@@ -996,18 +999,50 @@ void LoraMesher::recordState(LM_StateType type, Packet<uint8_t>* packet) {
 }
 
 #ifdef LM_TESTING
-bool LoraMesher::canReceivePacket(uint16_t source) {
-    return true;
+bool LoraMesher::isNodeInDenyList(uint16_t address) {
+    return std::find(receiveDenyList.begin(), receiveDenyList.end(), address) != receiveDenyList.end();
 }
-#endif
 
-#ifdef LM_TESTING
+void LoraMesher::addNodeToDenyList(uint16_t address) {
+    receiveDenyList.push_back(address);
+    ESP_LOGI(LM_TAG, "Added %X to receiveDenyList.", address);
+}
+
+void LoraMesher::removeNodeFromDenyList(uint16_t address) {
+    auto it = std::find(receiveDenyList.begin(), receiveDenyList.end(), address);
+    if (it != receiveDenyList.end()) {
+        receiveDenyList.erase(it);
+        ESP_LOGI(LM_TAG, "Removed %X from receiveDenyList.", address);
+    } else {
+        ESP_LOGI(LM_TAG, "Node %X not found in receiveDenyList.", address);
+    }
+}
+
+void LoraMesher::clearDenyList() {
+    receiveDenyList.clear();
+    ESP_LOGI(LM_TAG, "Removed all nodes from receiveDenyList.");
+}
+
+void LoraMesher::printDenyList() {
+    ESP_LOGI(LM_TAG, "Nodes currently in receiveDenyList (%d):", receiveDenyList.size());
+    for (auto it = receiveDenyList.begin(); it != receiveDenyList.end(); it++) {
+        ESP_LOGI(LM_TAG, "- %X", *it);
+    }
+}
+
+bool LoraMesher::canReceivePacket(uint16_t src, uint16_t fwd) {
+    return !(isNodeInDenyList(BROADCAST_ADDR) || isNodeInDenyList(src) || isNodeInDenyList(fwd));
+}
+
 bool LoraMesher::isDataPacketAndLocal(DataPacket* packet, uint16_t localAddress) {
     return PacketService::isDataPacket(packet->type) && packet->via == localAddress;
 }
 
 bool LoraMesher::shouldProcessPacket(Packet<uint8_t>* packet) {
-    return isDataPacketAndLocal(reinterpret_cast<DataPacket*>(packet), getLocalAddress()) || canReceivePacket(packet->src);
+    if (PacketService::isDataPacket(packet->type)) {
+        return canReceivePacket(packet->src, packet->fwd);
+    }
+    return true;
 }
 #endif
 

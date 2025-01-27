@@ -8,6 +8,7 @@ class PacketHeader {
 public:
     uint16_t dst = 0;
     uint16_t src = 0;
+    uint16_t fwd = 0;
     uint8_t type = 0;
     //TODO: REMOVE THIS ID
     uint16_t id;

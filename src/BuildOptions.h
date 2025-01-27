@@ -107,7 +107,7 @@ extern const char* LM_VERSION;
 //Free Role Types from 0b00000010 to 0b10000000
 
 // Define if is testing
-// #define LM_TESTING
+#define LM_TESTING
 
 #define SNR_QUALITY_THRESHOLD -30
 #define MAX_HISTORY_NODES 100

@@ -757,10 +757,11 @@ void LoraMesher::printHeaderPacket(Packet<uint8_t>* p, String title) {
     bool isDataPacket = PacketService::isDataPacket(p->type);
     bool isControlPacket = PacketService::isControlPacket(p->type);
 
-    ESP_LOGV(LM_TAG, "Packet %s -- Size: %d Src: %X Dst: %X Id: %d Type: %d Via: %X Seq_Id: %d Num: %d",
+    ESP_LOGV(LM_TAG, "Packet %s -- Size: %d Src: %X Fwd: %X Dst: %X Id: %d Type: %d Via: %X Seq_Id: %d Num: %d",
         title.c_str(),
         p->packetSize,
         p->src,
+        p->fwd,
         p->dst,
         p->id,
         p->type,
@@ -866,7 +867,7 @@ void LoraMesher::processDataPacket(QueuePacket<DataPacket>* pq) {
 
     incReceivedDataPackets();
 
-    ESP_LOGI(LM_TAG, "Data packet from %X, destination %X, via %X, hops remain %d", packet->src, packet->dst, packet->via, packet->hops);
+    ESP_LOGI(LM_TAG, "Processing data packet with src: %X dst: %X via: %X hopLimit: %d hopStart: %d", packet->src, packet->dst, packet->via, packet->hopLimit, packet->hopStart);
 
     if (packetHistory.wasSeen(packet)) {
         ESP_LOGI(LM_TAG, "Packet has already been seen: dropping packet");

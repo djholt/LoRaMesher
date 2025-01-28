@@ -7,7 +7,8 @@
 class RouteDataPacket : public PacketHeader {
 public:
     uint16_t via = 0;
-    uint16_t hops = 0;
+    uint8_t hopLimit = 0;
+    uint8_t hopStart = 0;
 };
 #pragma pack()
 

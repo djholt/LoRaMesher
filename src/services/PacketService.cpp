@@ -150,11 +150,12 @@ DataPacket* PacketService::createDataPacket(uint16_t dst, uint16_t src, uint8_t 
     packet->src = src;
     packet->fwd = 0;
     packet->type = type;
-    packet->hops = maxHops;
+    packet->hopLimit = maxHops;
+    packet->hopStart = maxHops;
     packet->id = ++lastPacketId;
     packet->packetSize = payloadSize + sizeof(DataPacket);
 
-    ESP_LOGV(LM_TAG, "Creating data packet with ID %d Hops %d", packet->id, packet->hops);
+    ESP_LOGV(LM_TAG, "Creating data packet with id: %d hopLimit: %d", packet->id, packet->hopLimit);
 
     return packet;
 }

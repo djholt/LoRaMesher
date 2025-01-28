@@ -41,7 +41,7 @@ bool VectorRouting::routeBeforeSend(QueuePacket<Packet<uint8_t>>* tx) {
 void FloodingRouting::routeDataPacket(QueuePacket<DataPacket>* pq) {
     DataPacket* packet = pq->packet;
 
-    if (packet->hops <= 0) {
+    if (packet->hopLimit <= 0) {
         ESP_LOGI(LM_TAG, "Packet is not for me and has reached hop limit. Dropping packet.");
         PacketQueueService::deleteQueuePacketAndPacket(pq);
     } else if (packet->via == BROADCAST_ADDR) {
@@ -62,7 +62,7 @@ void FloodingRouting::routeDataPacket(QueuePacket<DataPacket>* pq) {
 bool FloodingRouting::routeBeforeSend(QueuePacket<Packet<uint8_t>>* tx) {
     if (PacketService::isDataPacket(tx->packet->type) && tx->packet->dst != BROADCAST_ADDR) {
         if ((reinterpret_cast<DataPacket*>(tx->packet))->via == BROADCAST_ADDR) {
-            (reinterpret_cast<DataPacket*>(tx->packet))->hops -= 1;
+            (reinterpret_cast<DataPacket*>(tx->packet))->hopLimit -= 1;
         } else {
             uint16_t nextHop = RoutingTableService::getNextHop(tx->packet->dst);
 

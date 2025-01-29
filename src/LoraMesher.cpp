@@ -1063,7 +1063,7 @@ void LoraMesher::printDenyList() {
 }
 
 bool LoraMesher::canReceivePacket(uint16_t src, uint16_t fwd) {
-    bool inAllow = isNodeInAllowList(BROADCAST_ADDR) || isNodeInAllowList(src) || isNodeInAllowList(fwd);
+    bool inAllow = isNodeInAllowList(BROADCAST_ADDR) || isNodeInAllowList(src) && isNodeInAllowList(fwd);
     bool inDeny = isNodeInDenyList(BROADCAST_ADDR) || isNodeInDenyList(src) || isNodeInDenyList(fwd);
     return inAllow || !inDeny;
 }

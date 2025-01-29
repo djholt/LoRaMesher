@@ -471,6 +471,12 @@ public:
     static uint8_t getRole() { return RoleService::getRole(); };
 
     /**
+     * @brief Checks node role
+     *
+     */
+    static bool hasRole(uint8_t role) { return RoleService::isRole(role); };
+
+    /**
      * @brief Adds node role
      *
      * @param role Role to be added

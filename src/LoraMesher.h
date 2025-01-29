@@ -465,11 +465,24 @@ public:
     static void removeGatewayRole() { RoleService::removeRole(ROLE_GATEWAY); };
 
     /**
-     * @brief Defines any type of Role
+     * @brief Gets node role
      *
-     * @param role Role to be defined
      */
-    static void addRole(uint8_t role) { RoleService::setRole(role); };
+    static uint8_t getRole() { return RoleService::getRole(); };
+
+    /**
+     * @brief Adds node role
+     *
+     * @param role Role to be added
+     */
+    static void addRole(uint8_t role) { RoleService::addRole(role); };
+
+    /**
+     * @brief Removes node role
+     *
+     * @param role Role to be removed
+     */
+    static void removeRole(uint8_t role) { RoleService::removeRole(role); };
 
     /**
      * @brief Get the Nearest Gateway object

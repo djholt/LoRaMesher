@@ -105,6 +105,7 @@ extern const char* LM_VERSION;
 //Role Types
 #define ROLE_DEFAULT 0b00000000
 #define ROLE_GATEWAY 0b00000001
+#define ROLE_CARRIER 0b00000010
 //Free Role Types from 0b00000010 to 0b10000000
 
 // Define if is testing

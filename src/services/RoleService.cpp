@@ -8,6 +8,10 @@ void RoleService::setRole(uint8_t role) {
     *nodeRole = role;
 }
 
+void RoleService::addRole(uint8_t role) {
+    *nodeRole = *nodeRole | role;
+}
+
 void RoleService::removeRole(uint8_t role) {
     *nodeRole = *nodeRole & ~role;
 }

@@ -319,6 +319,15 @@ void processSerialInput() {
                 char *addrStr = ++separator;
                 uint16_t addr = strtoul(addrStr, NULL, 16);
                 radio.removeNodeFromDenyList(addr);
+            } else if (strcmp(serialRxBuffer, "carrier") == 0) {
+                char *enableStr = ++separator;
+                uint8_t enable = strtoul(enableStr, NULL, 10);
+                if (enable) {
+                  radio.addRole(ROLE_CARRIER);
+                } else {
+                  radio.removeRole(ROLE_CARRIER);
+                }
+                Serial.printf("Node role is now set to: %d\n", radio.getRole());
             } else {
                 uint16_t recipientAddr = strtoul(serialRxBuffer, NULL, 16);
                 char *recipientPayload = ++separator;

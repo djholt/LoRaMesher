@@ -20,6 +20,12 @@ public:
     static void setRole(uint8_t role);
 
     /**
+     * @brief Add the Role object
+     *
+     */
+    static void addRole(uint8_t role);
+
+    /**
      * @brief Remove the Role object
      * 
      */

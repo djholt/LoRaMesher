@@ -85,6 +85,7 @@ extern const char* LM_VERSION;
 #define XL_DATA_P  0b00010010
 #define LOST_P     0b00100010
 #define SYNC_P     0b01000010
+#define CARRY_P    0b10000010
 
 // Packet configuration
 #define BROADCAST_ADDR 0xFFFF

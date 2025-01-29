@@ -1000,13 +1000,32 @@ void LoraMesher::recordState(LM_StateType type, Packet<uint8_t>* packet) {
 }
 
 #ifdef LM_TESTING
+bool LoraMesher::isNodeInAllowList(uint16_t address) {
+    return std::find(receiveAllowList.begin(), receiveAllowList.end(), address) != receiveAllowList.end();
+}
+
 bool LoraMesher::isNodeInDenyList(uint16_t address) {
     return std::find(receiveDenyList.begin(), receiveDenyList.end(), address) != receiveDenyList.end();
+}
+
+void LoraMesher::addNodeToAllowList(uint16_t address) {
+    receiveAllowList.push_back(address);
+    ESP_LOGI(LM_TAG, "Added %X to receiveAllowList.", address);
 }
 
 void LoraMesher::addNodeToDenyList(uint16_t address) {
     receiveDenyList.push_back(address);
     ESP_LOGI(LM_TAG, "Added %X to receiveDenyList.", address);
+}
+
+void LoraMesher::removeNodeFromAllowList(uint16_t address) {
+    auto it = std::find(receiveAllowList.begin(), receiveAllowList.end(), address);
+    if (it != receiveAllowList.end()) {
+        receiveAllowList.erase(it);
+        ESP_LOGI(LM_TAG, "Removed %X from receiveAllowList.", address);
+    } else {
+        ESP_LOGI(LM_TAG, "Node %X not found in receiveAllowList.", address);
+    }
 }
 
 void LoraMesher::removeNodeFromDenyList(uint16_t address) {
@@ -1019,9 +1038,21 @@ void LoraMesher::removeNodeFromDenyList(uint16_t address) {
     }
 }
 
+void LoraMesher::clearAllowList() {
+    receiveAllowList.clear();
+    ESP_LOGI(LM_TAG, "Removed all nodes from receiveAllowList.");
+}
+
 void LoraMesher::clearDenyList() {
     receiveDenyList.clear();
     ESP_LOGI(LM_TAG, "Removed all nodes from receiveDenyList.");
+}
+
+void LoraMesher::printAllowList() {
+    ESP_LOGI(LM_TAG, "Nodes currently in receiveAllowList (%d):", receiveAllowList.size());
+    for (auto it = receiveAllowList.begin(); it != receiveAllowList.end(); it++) {
+        ESP_LOGI(LM_TAG, "- %X", *it);
+    }
 }
 
 void LoraMesher::printDenyList() {
@@ -1032,7 +1063,9 @@ void LoraMesher::printDenyList() {
 }
 
 bool LoraMesher::canReceivePacket(uint16_t src, uint16_t fwd) {
-    return !(isNodeInDenyList(BROADCAST_ADDR) || isNodeInDenyList(src) || isNodeInDenyList(fwd));
+    bool inAllow = isNodeInAllowList(BROADCAST_ADDR) || isNodeInAllowList(src) || isNodeInAllowList(fwd);
+    bool inDeny = isNodeInDenyList(BROADCAST_ADDR) || isNodeInDenyList(src) || isNodeInDenyList(fwd);
+    return inAllow || !inDeny;
 }
 
 bool LoraMesher::isDataPacketAndLocal(DataPacket* packet, uint16_t localAddress) {

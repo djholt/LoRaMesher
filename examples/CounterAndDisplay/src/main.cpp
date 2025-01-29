@@ -311,7 +311,15 @@ void processSerialInput() {
         char *separator = strchr(serialRxBuffer, ':');
         if (separator != 0) {
             *separator = '\0';
-            if (strcmp(serialRxBuffer, "denyadd") == 0) {
+            if (strcmp(serialRxBuffer, "allowadd") == 0) {
+                char *addrStr = ++separator;
+                uint16_t addr = strtoul(addrStr, NULL, 16);
+                radio.addNodeToAllowList(addr);
+            } else if (strcmp(serialRxBuffer, "allowrm") == 0) {
+                char *addrStr = ++separator;
+                uint16_t addr = strtoul(addrStr, NULL, 16);
+                radio.removeNodeFromAllowList(addr);
+            } else if (strcmp(serialRxBuffer, "denyadd") == 0) {
                 char *addrStr = ++separator;
                 uint16_t addr = strtoul(addrStr, NULL, 16);
                 radio.addNodeToDenyList(addr);
@@ -333,6 +341,10 @@ void processSerialInput() {
                 char *recipientPayload = ++separator;
                 sendUserPacket(recipientAddr, recipientPayload);
             }
+        } else if (strcmp(serialRxBuffer, "allowls") == 0) {
+            radio.printAllowList();
+        } else if (strcmp(serialRxBuffer, "allowclear") == 0) {
+            radio.clearAllowList();
         } else if (strcmp(serialRxBuffer, "denyls") == 0) {
             radio.printDenyList();
         } else if (strcmp(serialRxBuffer, "denyclear") == 0) {

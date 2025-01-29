@@ -1062,10 +1062,25 @@ private:
 #ifdef LM_TESTING
 
     /**
+     * @brief List of node IDs that this node promises to receive from
+     *
+     */
+    std::vector<uint16_t> receiveAllowList;
+
+    /**
      * @brief List of node IDs that this node refuses to receive from
      *
      */
     std::vector<uint16_t> receiveDenyList;
+
+    /**
+     * @brief Returns true if the node ID is in the receiveAllowList
+     *
+     * @param address The address of the node to check
+     * @return true The node is in receiveAllowList
+     * @return false The node is not in receiveAllowList
+     */
+    bool isNodeInAllowList(uint16_t address);
 
     /**
      * @brief Returns true if the node ID is in the receiveDenyList
@@ -1078,11 +1093,25 @@ private:
 
 public:
     /**
+     * @brief Adds the node ID to the receiveAllowList
+     *
+     * @param address The address of the node to add
+     */
+    void addNodeToAllowList(uint16_t address);
+
+    /**
      * @brief Adds the node ID to the receiveDenyList
      *
      * @param address The address of the node to add
      */
     void addNodeToDenyList(uint16_t address);
+
+    /**
+     * @brief Removes the node ID from the receiveAllowList
+     *
+     * @param address The address of the node to remove
+     */
+    void removeNodeFromAllowList(uint16_t address);
 
     /**
      * @brief Removes the node ID from the receiveDenyList
@@ -1092,10 +1121,22 @@ public:
     void removeNodeFromDenyList(uint16_t address);
 
     /**
+     * @brief Removes all node IDs from the receiveAllowList
+     *
+     */
+    void clearAllowList();
+
+    /**
      * @brief Removes all node IDs from the receiveDenyList
      *
      */
     void clearDenyList();
+
+    /**
+     * @brief Prints all node IDs in the receiveAllowList
+     *
+     */
+    void printAllowList();
 
     /**
      * @brief Prints all node IDs in the receiveDenyList

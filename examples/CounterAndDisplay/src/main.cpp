@@ -262,19 +262,28 @@ void sendUserPacket(uint32_t recipientAddr, char *recipientPayload) {
     LM_LinkedList<RouteNode> *routingTableList = radio.routingTableListCopy();
     routingTableList->setInUse();
 
+    uint16_t foundVia = 0;
     for (int i = 0; i < radio.routingTableSize(); i++) {
         RouteNode *rNode = (*routingTableList)[i];
         NetworkNode node = rNode->networkNode;
         if (node.address == recipientAddr) {
-            Serial.printf("Sending packet to %X via %X with payload: %s\n", node.address, rNode->via, recipientPayload);
-            strncpy(userPacket->message, recipientPayload, sizeof(userPacket->message)-1);
-            userPacket->message[sizeof(userPacket->message)-1] = '\0';
-            radio.createPacketAndSend(node.address, userPacket, 1);
+            foundVia = rNode->via;
         }
     }
 
     routingTableList->releaseInUse();
     delete routingTableList;
+
+    Serial.printf("Sending packet to %X with payload: %s\n", recipientAddr, recipientPayload);
+    if (foundVia) {
+        Serial.printf("Destination node %X found in routing table with via %X\n", recipientAddr, foundVia);
+    } else {
+        Serial.printf("Destination node %X not found in routing table but sending anyway!\n", recipientAddr);
+    }
+
+    strncpy(userPacket->message, recipientPayload, sizeof(userPacket->message)-1);
+    userPacket->message[sizeof(userPacket->message)-1] = '\0';
+    radio.createPacketAndSend(recipientAddr, userPacket, 1);
 }
 
 const byte serialRxBufferSize = 255;

@@ -886,8 +886,10 @@ void LoraMesher::processDataPacket(QueuePacket<DataPacket>* pq) {
         ESP_LOGV(LM_TAG, "Data packet from %X BROADCAST", packet->src);
         incReceivedBroadcast();
         processDataPacketForMe(pq);
-    } else if (PacketService::isCarryPacket(packet->type) && hasRole(ROLE_CARRIER) && (packet->via == getLocalAddress() || packet->via == BROADCAST_ADDR)) {
-        ESP_LOGV(LM_TAG, "Carry packet and I am a qualifying carrier");
+// TODO -- Add this to the if statement: && hasRole(ROLE_CARRIER)
+    } else if (PacketService::isCarryPacket(packet->type) && (packet->via == getLocalAddress() || packet->via == BROADCAST_ADDR)) { 
+        ESP_LOGV(LM_TAG, "Carry packet and I am a qualifying carrier.");
+        sendReliablePacket(packet->via, packet->payload, 1);
         PacketQueueService::deleteQueuePacketAndPacket(pq);
     } else {
         RoutingManager->routeDataPacket(pq);

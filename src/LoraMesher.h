@@ -291,8 +291,7 @@ public:
         //Create a data packet with the payload
         DataPacket* dPacket = PacketService::createDataPacket(dst, getLocalAddress(), CARRY_P, reinterpret_cast<uint8_t*>(payload), payloadSizeInBytes, getConfig().maxHops);
 
-        //If flooding, set the via to BROADCAST_ADDR
-        // TODO -- Find a better place for this assignment (PacketService.cpp)
+        // Via is carrier
         if (getConfig().protocol == RoutingProtocols::FLOODING_ROUTING) {
             dPacket->via = BROADCAST_ADDR;
         }

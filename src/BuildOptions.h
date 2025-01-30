@@ -52,7 +52,7 @@ extern const char* LM_VERSION;
 // 433E6 for Asia
 // 866E6 for Europe
 // 915E6 for North America
-#define LM_BAND 902.125F //908.125F
+#define LM_BAND 904.125F //908.125F
 #define LM_BANDWIDTH 250.0
 #define LM_LORASF 11U
 #define LM_CODING_RATE 5U

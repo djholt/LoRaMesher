@@ -277,6 +277,30 @@ public:
         setPackedForSend(reinterpret_cast<Packet<uint8_t>*>(dPacket), DEFAULT_PRIORITY);
     }
 
+    template <typename T>
+    void createCarryPacketAndSend(uint16_t dst, T* payload, uint8_t payloadSize) {
+        //Cannot send an empty packet
+        if (payloadSize == 0)
+            return;
+
+        //Get the size of the payload in bytes
+        size_t payloadSizeInBytes = payloadSize * sizeof(T);
+
+        ESP_LOGV(LM_TAG, "Creating a packet for send with %d bytes", payloadSizeInBytes);
+
+        //Create a data packet with the payload
+        DataPacket* dPacket = PacketService::createDataPacket(dst, getLocalAddress(), CARRY_P, reinterpret_cast<uint8_t*>(payload), payloadSizeInBytes, getConfig().maxHops);
+
+        //If flooding, set the via to BROADCAST_ADDR
+        // TODO -- Find a better place for this assignment (PacketService.cpp)
+        if (getConfig().protocol == RoutingProtocols::FLOODING_ROUTING) {
+            dPacket->via = BROADCAST_ADDR;
+        }
+
+        //Create the packet and set it to the send queue
+        setPackedForSend(reinterpret_cast<Packet<uint8_t>*>(dPacket), DEFAULT_PRIORITY);
+    }
+
     /**
      * @brief Send the payload reliable.
      * It will wait for an ACK back from the destination to send the next packet.

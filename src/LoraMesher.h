@@ -262,7 +262,7 @@ public:
         //Get the size of the payload in bytes
         size_t payloadSizeInBytes = payloadSize * sizeof(T);
 
-        ESP_LOGV(LM_TAG, "Creating a packet for send with %d bytes", payloadSizeInBytes);
+        ESP_LOGI(LM_TAG, "Creating a packet for send with %d bytes", payloadSizeInBytes);
 
         //Create a data packet with the payload
         DataPacket* dPacket = PacketService::createDataPacket(dst, getLocalAddress(), DATA_P, reinterpret_cast<uint8_t*>(payload), payloadSizeInBytes, getConfig().maxHops);
@@ -280,7 +280,7 @@ public:
         //Get the size of the payload in bytes
         size_t payloadSizeInBytes = payloadSize * sizeof(T);
 
-        ESP_LOGV(LM_TAG, "Creating a carry packet for send with %d bytes", payloadSizeInBytes);
+        ESP_LOGI(LM_TAG, "Creating a carry packet for send with %d bytes", payloadSizeInBytes);
 
         //Create a data packet with the payload
         DataPacket* dPacket = PacketService::createDataPacket(dst, getLocalAddress(), CARRY_P, reinterpret_cast<uint8_t*>(payload), payloadSizeInBytes, getConfig().maxHops);
@@ -713,9 +713,9 @@ private:
      * @param priority Priority set DEFAULT_PRIORITY by default. 0 most priority
      */
     void setPackedForSend(Packet<uint8_t>* p, uint8_t priority) {
-        ESP_LOGI(LM_TAG, "Adding packet to Q_SP");
+        ESP_LOGV(LM_TAG, "Adding packet to Q_SP");
         QueuePacket<Packet<uint8_t>>* send = PacketQueueService::createQueuePacket(p, priority);
-        ESP_LOGI(LM_TAG, "Created packet to Q_SP");
+        ESP_LOGV(LM_TAG, "Created packet to Q_SP");
         addToSendOrderedAndNotify(send);
         //TODO: Using vTaskDelay to kill the packet inside LoraMesher
     }

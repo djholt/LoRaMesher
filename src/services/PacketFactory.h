@@ -50,7 +50,7 @@ public:
             return nullptr;
         }
 
-        ESP_LOGI(LM_TAG, "Packet created with %d bytes", packetSize);
+        ESP_LOGV(LM_TAG, "Packet created with %d bytes", packetSize);
 
         return p;
     };

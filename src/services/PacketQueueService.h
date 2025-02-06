@@ -77,10 +77,10 @@ public:
      * @param pq packet queue to be deleted
      */
     static void deleteQueuePacketAndPacket(QueuePacket<Packet<uint8_t>>* pq) {
-        ESP_LOGI(LM_TAG, "Deleting packet");
+        ESP_LOGV(LM_TAG, "Deleting packet");
         vPortFree(pq->packet);
 
-        ESP_LOGI(LM_TAG, "Deleting packet queue");
+        ESP_LOGV(LM_TAG, "Deleting packet queue");
         delete pq;
     }
 

@@ -10,11 +10,11 @@ void VectorRouting::routeDataPacket(QueuePacket<DataPacket>* pq) {
     DataPacket* packet = pq->packet;
 
     if (packet->via == mesher->getLocalAddress()) {
-        ESP_LOGV(LM_TAG, "Data Packet from %X for %X. Via is me. Forwarding it", packet->src, packet->dst);
+        ESP_LOGI(LM_TAG, "Data Packet from %X for %X. Via is me. Forwarding it", packet->src, packet->dst);
         mesher->incReceivedIAmVia();
         mesher->addToSendOrderedAndNotify(reinterpret_cast<QueuePacket<Packet<uint8_t>>*>(pq));
     } else {
-        ESP_LOGV(LM_TAG, "Packet not for me, deleting it");
+        ESP_LOGI(LM_TAG, "Packet not for me, deleting it");
         mesher->incReceivedNotForMe();
         PacketQueueService::deleteQueuePacketAndPacket(pq);
     }
@@ -45,15 +45,15 @@ void FloodingRouting::routeDataPacket(QueuePacket<DataPacket>* pq) {
         ESP_LOGI(LM_TAG, "Packet is not for me and has reached hop limit. Dropping packet.");
         PacketQueueService::deleteQueuePacketAndPacket(pq);
     } else if (packet->via == BROADCAST_ADDR) {
-        ESP_LOGV(LM_TAG, "Data Packet from %X for %X. Via is broadcast. Flooding!", packet->src, packet->dst);
+        ESP_LOGI(LM_TAG, "Data Packet from %X for %X. Via is broadcast. Flooding!", packet->src, packet->dst);
         mesher->incReceivedIAmVia();
         mesher->addToSendOrderedAndNotify(reinterpret_cast<QueuePacket<Packet<uint8_t>>*>(pq));
     } else if (packet->via == mesher->getLocalAddress()) {
-        ESP_LOGV(LM_TAG, "Data Packet from %X for %X. Via is me. Forwarding it", packet->src, packet->dst);
+        ESP_LOGI(LM_TAG, "Data Packet from %X for %X. Via is me. Forwarding it", packet->src, packet->dst);
         mesher->incReceivedIAmVia();
         mesher->addToSendOrderedAndNotify(reinterpret_cast<QueuePacket<Packet<uint8_t>>*>(pq));
     } else {
-        ESP_LOGV(LM_TAG, "Packet not for me, deleting it");
+        ESP_LOGI(LM_TAG, "Packet not for me, deleting it");
         mesher->incReceivedNotForMe();
         PacketQueueService::deleteQueuePacketAndPacket(pq);
     }

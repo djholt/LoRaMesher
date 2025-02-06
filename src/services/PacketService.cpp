@@ -14,7 +14,7 @@ Packet<uint8_t>* PacketService::createEmptyPacket(size_t packetSize) {
 
     Packet<uint8_t>* p = static_cast<Packet<uint8_t>*>(pvPortMalloc(packetSize));
 
-    ESP_LOGI(LM_TAG, "Packet created with %d bytes", packetSize);
+    ESP_LOGV(LM_TAG, "Packet created with %d bytes", packetSize);
 
     return p;
 
@@ -178,7 +178,7 @@ DataPacket* PacketService::createDataPacket(uint16_t dst, uint16_t src, uint8_t 
         packet->via = BROADCAST_ADDR;
     }
 
-    ESP_LOGV(LM_TAG, "Creating data packet with id: %d hopLimit: %d", packet->id, packet->hopLimit);
+    ESP_LOGI(LM_TAG, "Creating data packet with id: %d hopLimit: %d", packet->id, packet->hopLimit);
 
     return packet;
 }

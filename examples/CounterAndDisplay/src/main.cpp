@@ -258,7 +258,7 @@ void createSendMessages() {
     }
 }
 
-void sendUserPacket(uint32_t recipientAddr, char *recipientPayload) {
+void sendUserPacket(uint16_t recipientAddr, char *recipientPayload) {
     LM_LinkedList<RouteNode> *routingTableList = radio.routingTableListCopy();
     routingTableList->setInUse();
 
@@ -286,10 +286,11 @@ void sendUserPacket(uint32_t recipientAddr, char *recipientPayload) {
     radio.createPacketAndSend(recipientAddr, userPacket, 1);
 }
 
-void sendCarryPacket(uint32_t recipientAddr, char *recipientPayload) {
-    Serial.printf("Sending carry packet to %X via %X with payload: %s\n", recipientAddr, NULL, recipientPayload);
+void sendCarryPacket(uint16_t recipientAddr, uint16_t carrierAddr, char *recipientPayload) {
+    Serial.printf("Sending packet to %X using carrier %X with payload: %s\n", recipientAddr, carrierAddr, recipientPayload);
     strncpy(userPacket->message, recipientPayload, sizeof(userPacket->message)-1);
-    radio.createCarryPacketAndSend(recipientAddr, userPacket, 1);
+    userPacket->message[sizeof(userPacket->message)-1] = '\0';
+    radio.createCarryPacketAndSend(recipientAddr, carrierAddr, userPacket, 1);
 }
 
 const byte serialRxBufferSize = 255;
@@ -354,7 +355,7 @@ void processSerialInput() {
             } else if (serialRxBuffer[0] == '!') {
                 uint16_t recipientAddr = strtoul(serialRxBuffer + 1, NULL, 16);
                 char *recipientPayload = ++separator;
-                sendCarryPacket(recipientAddr, recipientPayload);
+                sendCarryPacket(recipientAddr, BROADCAST_ADDR, recipientPayload);
             } else {
                 uint16_t recipientAddr = strtoul(serialRxBuffer, NULL, 16);
                 char *recipientPayload = ++separator;

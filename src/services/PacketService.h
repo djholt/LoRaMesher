@@ -39,7 +39,7 @@ public:
      * @param payloadSize Payload size
      * @return ControlPacket*
      */
-    static ControlPacket* createControlPacket(uint16_t dst, uint16_t src, uint8_t type, uint8_t* payload, uint8_t payloadSize);
+    static ControlPacket* createControlPacket(uint16_t dst, uint16_t src, uint8_t type, uint8_t* payload, uint8_t payloadSize, uint8_t maxHops);
 
     /**
      * @brief Create a Empty Control Packet
@@ -51,7 +51,7 @@ public:
      * @param num_packets Number of the packet
      * @return ControlPacket*
      */
-    static ControlPacket* createEmptyControlPacket(uint16_t dst, uint16_t src, uint8_t type, uint8_t seq_id, uint16_t num_packets);
+    static ControlPacket* createEmptyControlPacket(uint16_t dst, uint16_t src, uint8_t type, uint8_t seq_id, uint16_t num_packets, uint8_t maxHops);
 
     /**
      * @brief Create a Data Packet

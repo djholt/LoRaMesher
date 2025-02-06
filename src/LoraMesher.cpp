@@ -792,9 +792,8 @@ void LoraMesher::sendReliablePacket(uint16_t dst, uint8_t* payload, uint32_t pay
     // Get the Routing Table node of the destination
     RouteNode* node = RoutingTableService::findNode(dst);
 
-    if (node == NULL) {
+    if (node == nullptr) {
         ESP_LOGV(LM_TAG, "Destination not found in the routing table");
-        return;
     }
 
     //Generate a sequence Id for this list of packets
@@ -815,7 +814,6 @@ void LoraMesher::sendReliablePacket(uint16_t dst, uint8_t* payload, uint32_t pay
     //Add the SYNC configuration packet
     packetList->Append(getStartSequencePacketQueue(dst, seq_id, numOfPackets));
 
-
     for (uint16_t i = 1; i <= numOfPackets; i++) {
         //Get the position of the payload
         uint8_t* payloadToSend = reinterpret_cast<uint8_t*>((unsigned long) payload + ((i - 1) * maxPayloadSize));
@@ -828,7 +826,7 @@ void LoraMesher::sendReliablePacket(uint16_t dst, uint8_t* payload, uint32_t pay
         ESP_LOGV(LM_TAG, "Payload Size: %d", payloadSizeToSend);
 
         //Create a new packet with the previous payload
-        ControlPacket* cPacket = PacketService::createControlPacket(dst, getLocalAddress(), type, payloadToSend, payloadSizeToSend);
+        ControlPacket* cPacket = PacketService::createControlPacket(dst, getLocalAddress(), type, payloadToSend, payloadSizeToSend, getConfig().maxHops);
         cPacket->number = i;
         cPacket->seq_id = seq_id;
 
@@ -887,8 +885,8 @@ void LoraMesher::processDataPacket(QueuePacket<DataPacket>* pq) {
         incReceivedBroadcast();
         processDataPacketForMe(pq);
     } else if (PacketService::isCarryPacket(packet->type) && (packet->via == getLocalAddress() || packet->via == BROADCAST_ADDR) && hasRole(ROLE_CARRIER)) {
-        ESP_LOGV(LM_TAG, "Carry packet and I am a qualifying carrier.");
-        sendReliablePacket(packet->dst, packet->payload, 1);
+        ESP_LOGI(LM_TAG, "Transforming inbound carry packet into outbound reliable packet for dst: %X", packet->dst);
+        sendReliablePacket(packet->dst, packet->payload, packet->packetSize);
         PacketQueueService::deleteQueuePacketAndPacket(pq);
     } else {
         RoutingManager->routeDataPacket(pq);
@@ -1140,7 +1138,7 @@ QueuePacket<ControlPacket>* LoraMesher::getStartSequencePacketQueue(uint16_t des
     uint8_t type = SYNC_P | NEED_ACK_P | XL_DATA_P;
 
     //Create the packet
-    ControlPacket* cPacket = PacketService::createEmptyControlPacket(destination, getLocalAddress(), type, seq_id, num_packets);
+    ControlPacket* cPacket = PacketService::createEmptyControlPacket(destination, getLocalAddress(), type, seq_id, num_packets, getConfig().maxHops);
 
     //Create a packet queue
     return PacketQueueService::createQueuePacket(cPacket, DEFAULT_PRIORITY, 0);
@@ -1150,7 +1148,7 @@ void LoraMesher::sendAckPacket(uint16_t destination, uint8_t seq_id, uint16_t se
     uint8_t type = ACK_P;
 
     //Create the packet
-    ControlPacket* cPacket = PacketService::createEmptyControlPacket(destination, getLocalAddress(), type, seq_id, seq_num);
+    ControlPacket* cPacket = PacketService::createEmptyControlPacket(destination, getLocalAddress(), type, seq_id, seq_num, getConfig().maxHops);
 
     setPackedForSend(reinterpret_cast<Packet<uint8_t>*>(cPacket), DEFAULT_PRIORITY + 3);
 }
@@ -1159,7 +1157,7 @@ void LoraMesher::sendLostPacket(uint16_t destination, uint8_t seq_id, uint16_t s
     uint8_t type = LOST_P;
 
     //Create the packet
-    ControlPacket* cPacket = PacketService::createEmptyControlPacket(destination, getLocalAddress(), type, seq_id, seq_num);
+    ControlPacket* cPacket = PacketService::createEmptyControlPacket(destination, getLocalAddress(), type, seq_id, seq_num, getConfig().maxHops);
 
     setPackedForSend(reinterpret_cast<Packet<uint8_t>*>(cPacket), DEFAULT_PRIORITY + 2);
 }
@@ -1347,7 +1345,6 @@ void LoraMesher::processSyncPacket(uint16_t source, uint8_t seq_id, uint16_t seq
 
         if (node == nullptr) {
             ESP_LOGW(LM_TAG, "Node not found in the routing table");
-            return;
         }
 
         //Create the pair of configuration
@@ -1427,14 +1424,16 @@ void LoraMesher::actualizeRTT(sequencePacketConfig* config) {
         return;
     }
 
+    unsigned long actualRTT = millis() - config->calculatingRTT;
+    config->calculatingRTT = millis();
+
     RouteNode* node = config->node;
 
     if (node == nullptr) {
         ESP_LOGW(LM_TAG, "Node not found in the routing table");
+        ESP_LOGV(LM_TAG, "Updating RTT (%u ms), seq_Id: %d Src: %X", (unsigned int) actualRTT, config->seq_id, config->source);
         return;
     }
-
-    unsigned long actualRTT = millis() - config->calculatingRTT;
 
     // First time RTT is calculated for this node (RFC 6298)
     if (node->SRTT == 0) {
@@ -1446,8 +1445,6 @@ void LoraMesher::actualizeRTT(sequencePacketConfig* config) {
         node->RTTVAR = std::min((node->RTTVAR * 3 + absRTT) / 4, 100000UL);
         node->SRTT = std::min((node->SRTT * 7 + actualRTT) / 8, 100000UL);
     }
-
-    config->calculatingRTT = millis();
 
     ESP_LOGV(LM_TAG, "Updating RTT (%u ms), SRTT (%u), RTTVAR (%u) seq_Id: %d Src: %X",
         (unsigned int) actualRTT, (unsigned int) node->SRTT, (unsigned int) node->RTTVAR, config->seq_id, config->source);
@@ -1581,6 +1578,10 @@ void LoraMesher::managerTimeouts(LM_LinkedList<listConfiguration>* queue, QueueT
 }
 
 unsigned long LoraMesher::getMaximumTimeout(sequencePacketConfig* configPacket) {
+    if (configPacket->node == nullptr) {
+        return RELIABLE_RETRY_MAX_TIMEOUT * 1000;
+    }
+
     uint8_t hops = configPacket->node->networkNode.metric;
     if (hops == 0) {
         ESP_LOGE(LM_TAG, "Find next hop in add timeout");
@@ -1591,6 +1592,10 @@ unsigned long LoraMesher::getMaximumTimeout(sequencePacketConfig* configPacket) 
 }
 
 unsigned long LoraMesher::calculateTimeout(sequencePacketConfig* configPacket) {
+    if (configPacket->node == nullptr) {
+        return RELIABLE_RETRY_INIT_TIMEOUT * 1000;
+    }
+
     //TODO: This timeout should account for the number of send packets waiting to send + how many time between send packets?
     //TODO: This timeout should be a little variable depending on the duty cycle. 
     //TODO: Account for how many hops the packet needs to do

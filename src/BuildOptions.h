@@ -102,6 +102,10 @@ extern const char* LM_VERSION;
 #define MAX_RESEND_PACKET 3
 #define MAX_TRY_BEFORE_SEND 5
 
+// Time to wait before re-sending reliable packet (or sending a lost packet)
+#define RELIABLE_RETRY_INIT_TIMEOUT 60
+#define RELIABLE_RETRY_MAX_TIMEOUT  60
+
 //Role Types
 #define ROLE_DEFAULT 0b00000000
 #define ROLE_GATEWAY 0b00000001

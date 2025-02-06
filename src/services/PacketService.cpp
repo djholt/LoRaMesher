@@ -3,7 +3,7 @@
 static uint32_t getPacketId() {
     static uint32_t lastPacketId = 0;
     return ++lastPacketId;
-};
+}
 
 Packet<uint8_t>* PacketService::createEmptyPacket(size_t packetSize) {
     size_t maxPacketSize = PacketFactory::getMaxPacketSize();
@@ -110,7 +110,7 @@ RoutePacket* PacketService::createRoutingPacket(uint16_t localAddress, NetworkNo
     routePacket->src = localAddress;
     routePacket->fwd = 0;
     routePacket->type = HELLO_P;
-    routePacket->id = getPacketId();
+    routePacket->id = 0;
     routePacket->packetSize = routingSizeInBytes + sizeof(RoutePacket);
     routePacket->nodeRole = nodeRole;
 
@@ -125,28 +125,40 @@ ControlPacket* PacketService::controlPacket(Packet<uint8_t>* p) {
     return reinterpret_cast<ControlPacket*>(p);
 }
 
-ControlPacket* PacketService::createControlPacket(uint16_t dst, uint16_t src, uint8_t type, uint8_t* payload, uint8_t payloadSize) {
+ControlPacket* PacketService::createControlPacket(uint16_t dst, uint16_t src, uint8_t type, uint8_t* payload, uint8_t payloadSize, uint8_t maxHops) {
     ControlPacket* packet = PacketFactory::createPacket<ControlPacket>(payload, payloadSize);
     packet->dst = dst;
     packet->src = src;
     packet->fwd = 0;
     packet->type = type;
+    packet->hopLimit = maxHops;
+    packet->hopStart = maxHops;
     packet->id = getPacketId();
     packet->packetSize = payloadSize + sizeof(ControlPacket);
+
+    if (maxHops > 0) { // flooding!
+        packet->via = BROADCAST_ADDR;
+    }
 
     return packet;
 }
 
-ControlPacket* PacketService::createEmptyControlPacket(uint16_t dst, uint16_t src, uint8_t type, uint8_t seq_id, uint16_t num_packets) {
+ControlPacket* PacketService::createEmptyControlPacket(uint16_t dst, uint16_t src, uint8_t type, uint8_t seq_id, uint16_t num_packets, uint8_t maxHops) {
     ControlPacket* packet = PacketFactory::createPacket<ControlPacket>(0, 0);
     packet->dst = dst;
     packet->src = src;
     packet->fwd = 0;
     packet->type = type;
+    packet->hopLimit = maxHops;
+    packet->hopStart = maxHops;
     packet->id = getPacketId();
     packet->seq_id = seq_id;
     packet->number = num_packets;
     packet->packetSize = sizeof(ControlPacket);
+
+    if (maxHops > 0) { // flooding!
+        packet->via = BROADCAST_ADDR;
+    }
 
     return packet;
 }
@@ -161,6 +173,10 @@ DataPacket* PacketService::createDataPacket(uint16_t dst, uint16_t src, uint8_t 
     packet->hopStart = maxHops;
     packet->id = getPacketId();
     packet->packetSize = payloadSize + sizeof(DataPacket);
+
+    if (maxHops > 0) { // flooding!
+        packet->via = BROADCAST_ADDR;
+    }
 
     ESP_LOGV(LM_TAG, "Creating data packet with id: %d hopLimit: %d", packet->id, packet->hopLimit);
 

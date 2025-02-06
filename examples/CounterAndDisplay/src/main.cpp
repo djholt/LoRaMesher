@@ -286,6 +286,12 @@ void sendUserPacket(uint32_t recipientAddr, char *recipientPayload) {
     radio.createPacketAndSend(recipientAddr, userPacket, 1);
 }
 
+void sendCarryPacket(uint32_t recipientAddr, char *recipientPayload) {
+    Serial.printf("Sending carry packet to %X via %X with payload: %s\n", recipientAddr, NULL, recipientPayload);
+    strncpy(userPacket->message, recipientPayload, sizeof(userPacket->message)-1);
+    radio.createCarryPacketAndSend(recipientAddr, userPacket, 1);
+}
+
 const byte serialRxBufferSize = 255;
 char serialRxBuffer[serialRxBufferSize];
 boolean serialRxDataReceived = false;
@@ -345,6 +351,10 @@ void processSerialInput() {
                   radio.removeRole(ROLE_CARRIER);
                 }
                 Serial.printf("Node role is now set to: %d\n", radio.getRole());
+            } else if (serialRxBuffer[0] == '!') {
+                uint16_t recipientAddr = strtoul(serialRxBuffer + 1, NULL, 16);
+                char *recipientPayload = ++separator;
+                sendCarryPacket(recipientAddr, recipientPayload);
             } else {
                 uint16_t recipientAddr = strtoul(serialRxBuffer, NULL, 16);
                 char *recipientPayload = ++separator;

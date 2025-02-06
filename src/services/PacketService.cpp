@@ -1,5 +1,10 @@
 #include "PacketService.h"
 
+static uint32_t getPacketId() {
+    static uint32_t lastPacketId = 0;
+    return ++lastPacketId;
+};
+
 Packet<uint8_t>* PacketService::createEmptyPacket(size_t packetSize) {
     size_t maxPacketSize = PacketFactory::getMaxPacketSize();
     if (packetSize > maxPacketSize) {
@@ -79,6 +84,10 @@ bool PacketService::isXLPacket(uint8_t type) {
     return (type & XL_DATA_P) == XL_DATA_P;
 }
 
+bool PacketService::isCarryPacket(uint8_t type) {
+    return (type & CARRY_P) == CARRY_P;
+}
+
 bool PacketService::isDataControlPacket(uint8_t type) {
     return (isHelloPacket(type) || isAckPacket(type) || isLostPacket(type) || isLostPacket(type));
 }
@@ -101,7 +110,7 @@ RoutePacket* PacketService::createRoutingPacket(uint16_t localAddress, NetworkNo
     routePacket->src = localAddress;
     routePacket->fwd = 0;
     routePacket->type = HELLO_P;
-    routePacket->id = 0;
+    routePacket->id = getPacketId();
     routePacket->packetSize = routingSizeInBytes + sizeof(RoutePacket);
     routePacket->nodeRole = nodeRole;
 
@@ -122,7 +131,7 @@ ControlPacket* PacketService::createControlPacket(uint16_t dst, uint16_t src, ui
     packet->src = src;
     packet->fwd = 0;
     packet->type = type;
-    packet->id = 0;
+    packet->id = getPacketId();
     packet->packetSize = payloadSize + sizeof(ControlPacket);
 
     return packet;
@@ -134,7 +143,7 @@ ControlPacket* PacketService::createEmptyControlPacket(uint16_t dst, uint16_t sr
     packet->src = src;
     packet->fwd = 0;
     packet->type = type;
-    packet->id = 0;
+    packet->id = getPacketId();
     packet->seq_id = seq_id;
     packet->number = num_packets;
     packet->packetSize = sizeof(ControlPacket);
@@ -143,8 +152,6 @@ ControlPacket* PacketService::createEmptyControlPacket(uint16_t dst, uint16_t sr
 }
 
 DataPacket* PacketService::createDataPacket(uint16_t dst, uint16_t src, uint8_t type, uint8_t* payload, uint8_t payloadSize, uint8_t maxHops) {
-    static uint32_t lastPacketId = 0;
-
     DataPacket* packet = PacketFactory::createPacket<DataPacket>(payload, payloadSize);
     packet->dst = dst;
     packet->src = src;
@@ -152,7 +159,7 @@ DataPacket* PacketService::createDataPacket(uint16_t dst, uint16_t src, uint8_t 
     packet->type = type;
     packet->hopLimit = maxHops;
     packet->hopStart = maxHops;
-    packet->id = ++lastPacketId;
+    packet->id = getPacketId();
     packet->packetSize = payloadSize + sizeof(DataPacket);
 
     ESP_LOGV(LM_TAG, "Creating data packet with id: %d hopLimit: %d", packet->id, packet->hopLimit);

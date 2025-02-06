@@ -8,6 +8,7 @@ import time
 import urllib.request
 
 API_ROOT = 'https://mesh.holt.dj'
+DIR = 'examples/CounterAndDisplay'
 
 def get_nodes_to_deploy(addresses_and_or_names=None):
     with urllib.request.urlopen(API_ROOT + '/nodes') as body:
@@ -33,7 +34,7 @@ def get_nodes_to_deploy(addresses_and_or_names=None):
     return [{ 'addr': a, 'name': addr_to_name_map[a] } for a in nodes_to_deploy]
 
 def build_firmware():
-    run_proc = subprocess.Popen('pio run', shell=True)
+    run_proc = subprocess.Popen('pio run', shell=True, cwd=DIR)
     out, err = run_proc.communicate()
     return run_proc.returncode == 0
 
@@ -41,7 +42,7 @@ def run_process(node):
     agent = node['name'].lower()
     cmd = f'pio remote -a {agent} run -t upload'
     #cmd = f'pio remote -a {agent} device list'
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    p = subprocess.Popen(cmd, shell=True, cwd=DIR, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     t1 = time.time()
     out, err = p.communicate()
     t2 = time.time()

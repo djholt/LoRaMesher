@@ -14,12 +14,53 @@ LoraMesher& radio = LoraMesher::getInstance();
 
 uint32_t dataCounter = 0;
 struct dataPacket {
+    uint16_t replyToAddr = 0;
+    uint32_t requestId = 0;
+    uint32_t responseId = 0;
     int32_t counter = -1;
     char message[PAYLOAD_CHARS];
 };
 
 dataPacket* helloPacket = new dataPacket;
 dataPacket* userPacket = new dataPacket;
+
+void sendUserPacket(uint16_t recipientAddr, char *recipientPayload) {
+    LM_LinkedList<RouteNode> *routingTableList = radio.routingTableListCopy();
+    routingTableList->setInUse();
+
+    uint16_t foundVia = 0;
+    for (int i = 0; i < radio.routingTableSize(); i++) {
+        RouteNode *rNode = (*routingTableList)[i];
+        NetworkNode node = rNode->networkNode;
+        if (node.address == recipientAddr) {
+            foundVia = rNode->via;
+        }
+    }
+
+    routingTableList->releaseInUse();
+    delete routingTableList;
+
+    Serial.printf("Sending packet to %X with payload: %s\n", recipientAddr, recipientPayload);
+    if (foundVia) {
+        Serial.printf("Destination node %X found in routing table with via %X\n", recipientAddr, foundVia);
+    } else {
+        Serial.printf("Destination node %X not found in routing table but sending anyway!\n", recipientAddr);
+    }
+
+    strncpy(userPacket->message, recipientPayload, sizeof(userPacket->message)-1);
+    userPacket->message[sizeof(userPacket->message)-1] = '\0';
+    radio.createPacketAndSend(recipientAddr, userPacket, 1);
+}
+
+void sendCarryPacket(uint16_t recipientAddr, uint16_t carrierAddr, uint32_t requestId, uint32_t responseId, char *recipientPayload) {
+    Serial.printf("Sending packet to %X using carrier %X with payload: %s\n", recipientAddr, carrierAddr, recipientPayload);
+    strncpy(userPacket->message, recipientPayload, sizeof(userPacket->message)-1);
+    userPacket->message[sizeof(userPacket->message)-1] = '\0';
+    userPacket->replyToAddr = radio.getLocalAddress();
+    userPacket->requestId = requestId;
+    userPacket->responseId = responseId;
+    radio.createCarryPacketAndSend(recipientAddr, carrierAddr, userPacket, 1);
+}
 
 /**
  * @brief Flash the lead
@@ -46,6 +87,22 @@ void printPacketToScreen(dataPacket* data, uint16_t sourceAddress) {
     char text[32];
     snprintf(text, 32, ("%X-> %d\n"), sourceAddress, data->counter);
     Screen.changeLineThree(String(text));
+}
+
+void replyToDataPacket(AppPacket<dataPacket>* packet) {
+    if (packet->getPayloadLength() > 0) {
+        dataPacket* data = packet->payload;
+
+        if (data->requestId > 0) {
+            Serial.printf("Responding to request ID: %d from sender: %X\n", data->requestId, data->replyToAddr);
+
+            char reply[PAYLOAD_CHARS] = "REPLY:";
+            strncpy(&reply[strlen(reply)], data->message, sizeof(reply) - strlen(reply));
+            reply[sizeof(reply)-1] = '\0';
+
+            sendCarryPacket(data->replyToAddr, BROADCAST_ADDR, 0, data->requestId, reply);
+        }
+    }
 }
 
 /**
@@ -89,6 +146,8 @@ void processReceivedPackets(void*) {
 
             //Print the data packet
             printDataPacket(packet);
+
+            replyToDataPacket(packet);
 
             //Delete the packet when used. It is very important to call this function to release the memory of the packet.
             radio.deletePacket(packet);
@@ -258,41 +317,6 @@ void createSendMessages() {
     }
 }
 
-void sendUserPacket(uint16_t recipientAddr, char *recipientPayload) {
-    LM_LinkedList<RouteNode> *routingTableList = radio.routingTableListCopy();
-    routingTableList->setInUse();
-
-    uint16_t foundVia = 0;
-    for (int i = 0; i < radio.routingTableSize(); i++) {
-        RouteNode *rNode = (*routingTableList)[i];
-        NetworkNode node = rNode->networkNode;
-        if (node.address == recipientAddr) {
-            foundVia = rNode->via;
-        }
-    }
-
-    routingTableList->releaseInUse();
-    delete routingTableList;
-
-    Serial.printf("Sending packet to %X with payload: %s\n", recipientAddr, recipientPayload);
-    if (foundVia) {
-        Serial.printf("Destination node %X found in routing table with via %X\n", recipientAddr, foundVia);
-    } else {
-        Serial.printf("Destination node %X not found in routing table but sending anyway!\n", recipientAddr);
-    }
-
-    strncpy(userPacket->message, recipientPayload, sizeof(userPacket->message)-1);
-    userPacket->message[sizeof(userPacket->message)-1] = '\0';
-    radio.createPacketAndSend(recipientAddr, userPacket, 1);
-}
-
-void sendCarryPacket(uint16_t recipientAddr, uint16_t carrierAddr, char *recipientPayload) {
-    Serial.printf("Sending packet to %X using carrier %X with payload: %s\n", recipientAddr, carrierAddr, recipientPayload);
-    strncpy(userPacket->message, recipientPayload, sizeof(userPacket->message)-1);
-    userPacket->message[sizeof(userPacket->message)-1] = '\0';
-    radio.createCarryPacketAndSend(recipientAddr, carrierAddr, userPacket, 1);
-}
-
 const byte serialRxBufferSize = 255;
 char serialRxBuffer[serialRxBufferSize];
 boolean serialRxDataReceived = false;
@@ -355,7 +379,7 @@ void processSerialInput() {
             } else if (serialRxBuffer[0] == '!') {
                 uint16_t recipientAddr = strtoul(serialRxBuffer + 1, NULL, 16);
                 char *recipientPayload = ++separator;
-                sendCarryPacket(recipientAddr, BROADCAST_ADDR, recipientPayload);
+                sendCarryPacket(recipientAddr, BROADCAST_ADDR, 1, 0, recipientPayload);
             } else {
                 uint16_t recipientAddr = strtoul(serialRxBuffer, NULL, 16);
                 char *recipientPayload = ++separator;

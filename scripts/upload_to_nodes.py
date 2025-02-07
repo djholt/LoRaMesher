@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 
+import base64
+import io
 import json
+import os
 import subprocess
 import sys
-import threading
+import tarfile
 import time
 import urllib.request
 
 API_ROOT = 'https://mesh.holt.dj'
-DIR = 'examples/CounterAndDisplay'
+BUILD_DIR = 'examples/CounterAndDisplay'
+SCRIPTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
 def get_nodes_to_deploy(addresses_and_or_names=None):
     with urllib.request.urlopen(API_ROOT + '/nodes') as body:
@@ -34,33 +38,32 @@ def get_nodes_to_deploy(addresses_and_or_names=None):
     return [{ 'addr': a, 'name': addr_to_name_map[a] } for a in nodes_to_deploy]
 
 def build_firmware():
-    run_proc = subprocess.Popen('pio run', shell=True, cwd=DIR)
+    run_proc = subprocess.Popen('pio run', shell=True, cwd=BUILD_DIR)
     out, err = run_proc.communicate()
     return run_proc.returncode == 0
 
-def run_process(node):
-    agent = node['name'].lower()
-    cmd = f'pio remote -a {agent} run -t upload'
-    #cmd = f'pio remote -a {agent} device list'
-    p = subprocess.Popen(cmd, shell=True, cwd=DIR, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    t1 = time.time()
-    out, err = p.communicate()
-    t2 = time.time()
-    node['elapsed'] = t2 - t1
-    node['output'] = out
-    node['returncode'] = p.returncode
-
-    msg = 'succeeded in' if node['returncode'] == 0 else 'failed after'
-    print('Upload to node', node_desc(node), msg, round(node['elapsed'], 1), 'seconds')
-    #print(node['output'].decode('utf-8'))
-
 def upload_firmware(nodes):
-    threads = [threading.Thread(target=run_process, args=[node]) for node in nodes]
-    for t in threads: t.start()
-    for t in threads: t.join()
+    bins = [
+        f'{SCRIPTS_DIR}/Makefile',
+        f'{BUILD_DIR}/.pio/build/heltec_wifi_lora_32_V3/bootloader.bin',
+        f'{BUILD_DIR}/.pio/build/heltec_wifi_lora_32_V3/firmware.bin',
+        f'{BUILD_DIR}/.pio/build/heltec_wifi_lora_32_V3/partitions.bin',
+        '~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin',
+    ]
 
-def send_admin_command(op, nodes):
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode='w:gz') as ball:
+        for bin_path in bins:
+            bin_path = os.path.expanduser(bin_path)
+            file_name = os.path.basename(bin_path)
+            ball.add(bin_path, arcname=file_name)
+    payload = base64.b64encode(buffer.getbuffer()).decode('utf-8')
+    send_admin_command('upload', nodes, data_payload=payload)
+
+def send_admin_command(op, nodes, data_payload=None):
     data = { 'op': op, 'nodeIds': [n['addr'] for n in nodes] }
+    if data_payload:
+        data['data'] = data_payload
     data = json.dumps(data).encode('utf-8')
     req = urllib.request.Request(API_ROOT + '/nodes/admin', data=data)
     req.add_header('Content-Type', 'application/json')
@@ -84,19 +87,8 @@ def main(args):
         print('Aborting: build failed!')
         sys.exit(1)
 
-    print('CLOSING SERIAL...')
-    if not send_admin_command('serial_close', nodes):
-        print('Aborting: API request failed!')
-        sys.exit(1)
-
     print('UPLOADING FIRMWARE...')
     upload_firmware(nodes)
-
-    print('OPENING SERIAL...')
-    if not send_admin_command('serial_open', nodes):
-        print('Aborting: API request failed!')
-        sys.exit(1)
-
     print('DONE!')
 
 if __name__ == '__main__':

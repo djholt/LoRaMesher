@@ -22,6 +22,7 @@ void LoraMesher::begin(LoraMesherConfig config) {
 
     // Initialize the radio
     initializeLoRa();
+    WiFiService::init();
 
     // Recalculate the max time on air
     recalculateMaxTimeOnAir();

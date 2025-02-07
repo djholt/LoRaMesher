@@ -920,7 +920,7 @@ void LoraMesher::processDataPacketForMe(QueuePacket<DataPacket>* pq) {
 
     bool needAck = PacketService::isNeedAckPacket(p->type);
 
-    if (PacketService::isOnlyDataPacket(p->type)) {
+    if (PacketService::isOnlyDataPacket(p->type) || PacketService::isCarryPacket(p->type)) {
         ESP_LOGI(LM_TAG, "Data Packet received");
         //Convert the packet into a user packet
         AppPacket<uint8_t>* appPacket = PacketService::convertPacket(p);

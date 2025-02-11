@@ -1336,6 +1336,40 @@ void LoraMesher::joinPacketsAndNotifyUser(listConfiguration* listConfig) {
     notifyUserReceivedPacket(p);
 }
 
+void LoraMesher::clearReliablePacketQueues() {
+    LM_LinkedList<listConfiguration>* queue = q_WSP;
+
+    ESP_LOGI(LM_TAG, "Clearing Reliable Send Packet Queues. Open connections %d", queue->getLength());
+
+    queue->setInUse();
+
+    while (queue->moveToStart()) {
+        listConfiguration* current = queue->getCurrent();
+
+        // Delete packets associated with this config
+        clearLinkedList(current);
+        queue->DeleteCurrent();
+    }
+
+    queue->releaseInUse();
+
+    queue = q_WRP;
+
+    ESP_LOGI(LM_TAG, "Clearing Reliable Receive Packet Queues. Open connections %d", queue->getLength());
+
+    queue->setInUse();
+
+    while (queue->moveToStart()) {
+        listConfiguration* current = queue->getCurrent();
+
+        // Delete packets associated with this config
+        clearLinkedList(current);
+        queue->DeleteCurrent();
+    }
+
+    queue->releaseInUse();
+}
+
 void LoraMesher::processSyncPacket(uint16_t source, uint8_t seq_id, uint16_t seq_num) {
     //Check for repeated sequence lists
     listConfiguration* listConfig = findSequenceList(q_WRP, seq_id, source);

@@ -291,6 +291,8 @@ public:
         setPackedForSend(reinterpret_cast<Packet<uint8_t>*>(dPacket), DEFAULT_PRIORITY);
     }
 
+    void clearReliablePacketQueues();
+
     /**
      * @brief Send the payload reliable.
      * It will wait for an ACK back from the destination to send the next packet.

@@ -398,6 +398,8 @@ void processSerialInput() {
             radio.clearDenyList();
         } else if (strcmp(serialRxBuffer, "routes") == 0) {
             RoutingTableService::printRoutingTable();
+        } else if (strcmp(serialRxBuffer, "purge") == 0) {
+            radio.clearReliablePacketQueues();
         }
     }
 }

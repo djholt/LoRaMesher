@@ -35,7 +35,7 @@ def get_nodes_to_deploy(addresses_and_or_names=None):
                 print('Warning: node address or name', addr_or_name, 'is not recognized or is not currently available.')
 
     nodes_to_deploy = sorted(list(nodes_to_deploy))
-    return [{ 'addr': a, 'name': addr_to_name_map[a] } for a in nodes_to_deploy]
+    return [{ 'addr': a, 'name': addr_to_name_map[a] if a in addr_to_name_map else '?' } for a in nodes_to_deploy]
 
 def build_firmware():
     run_proc = subprocess.Popen('pio run', shell=True, cwd=BUILD_DIR)
@@ -81,6 +81,9 @@ def main(args):
     addresses = None if args[0].lower() == 'all' else args
     nodes = get_nodes_to_deploy(addresses)
     print('DEPLOYING FIRMWARE TO NODES:', ', '.join([node_desc(node) for node in nodes]))
+
+    if input('Proceed? (y/n) ').lower() != 'y':
+        sys.exit(1)
 
     print('BUILDING FIRMWARE...')
     if not build_firmware():

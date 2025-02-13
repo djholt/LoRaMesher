@@ -11,8 +11,6 @@ import time
 import urllib.request
 
 API_ROOT = 'https://mesh.holt.dj'
-BUILD_DIR = 'examples/CounterAndDisplay'
-SCRIPTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
 def get_nodes_to_deploy(addresses_and_or_names=None):
     with urllib.request.urlopen(API_ROOT + '/nodes') as body:
@@ -32,31 +30,36 @@ def get_nodes_to_deploy(addresses_and_or_names=None):
             elif addr_or_name in name_to_addr_map and name_to_addr_map[addr_or_name] in available_nodes:
                 nodes_to_deploy.add(name_to_addr_map[addr_or_name])
             else:
-                print('Warning: node address or name', addr_or_name, 'is not recognized or is not currently available.')
+                print(f'Aborting: node address or name {addr_or_name} is not recognized or is not currently available.')
+                sys.exit(1)
 
     nodes_to_deploy = sorted(list(nodes_to_deploy))
     return [{ 'addr': a, 'name': addr_to_name_map[a] if a in addr_to_name_map else '?' } for a in nodes_to_deploy]
 
-def build_firmware():
-    run_proc = subprocess.Popen('pio run', shell=True, cwd=BUILD_DIR)
+def build_firmware(build_dir):
+    run_proc = subprocess.Popen('pio run', shell=True, cwd=build_dir)
     out, err = run_proc.communicate()
     return run_proc.returncode == 0
 
-def upload_firmware(nodes):
+def upload_firmware(build_dir, nodes):
+    script_dir = os.path.dirname(os.path.realpath(__file__))
     bins = [
-        f'{SCRIPTS_DIR}/Makefile',
-        f'{BUILD_DIR}/.pio/build/heltec_wifi_lora_32_V3/bootloader.bin',
-        f'{BUILD_DIR}/.pio/build/heltec_wifi_lora_32_V3/firmware.bin',
-        f'{BUILD_DIR}/.pio/build/heltec_wifi_lora_32_V3/partitions.bin',
+        f'{script_dir}/Makefile',
+        f'{build_dir}/.pio/build/heltec_wifi_lora_32_V3/bootloader.bin',
+        f'{build_dir}/.pio/build/heltec_wifi_lora_32_V3/firmware.bin',
+        f'{build_dir}/.pio/build/heltec_wifi_lora_32_V3/partitions.bin',
         '~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin',
     ]
+    file_paths = [os.path.realpath(os.path.expanduser(b)) for b in bins]
 
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode='w:gz') as ball:
-        for bin_path in bins:
-            bin_path = os.path.expanduser(bin_path)
-            file_name = os.path.basename(bin_path)
-            ball.add(bin_path, arcname=file_name)
+        for path in file_paths:
+            if not os.path.exists(path):
+                print(f'Aborting: {path} does not exist!')
+                sys.exit(1)
+            print(f'Uploading: {path}')
+            ball.add(path, arcname=os.path.basename(path))
     payload = base64.b64encode(buffer.getbuffer()).decode('utf-8')
     send_admin_command('upload', nodes, data_payload=payload)
 
@@ -74,24 +77,30 @@ def node_desc(node):
     return f"{node['name']} [{node['addr']}]"
 
 def main(args):
-    if len(args) == 0:
-        print('Aborting: must specify node addresses and/or names to deploy, or "all" to deploy all nodes.')
+    if len(args) < 2:
+        print(f'usage: {os.path.basename(__file__)} build_dir all')
+        print(f'       {os.path.basename(__file__)} build_dir node_addr_or_name ...')
         sys.exit(1)
 
-    addresses = None if args[0].lower() == 'all' else args
+    build_dir = args[0]
+    if not os.path.exists(build_dir):
+        print(f'Aborting: build_dir {build_dir} does not exist!')
+        sys.exit(1)
+
+    addresses = None if args[1].lower() == 'all' else args[1:]
     nodes = get_nodes_to_deploy(addresses)
-    print('DEPLOYING FIRMWARE TO NODES:', ', '.join([node_desc(node) for node in nodes]))
+    print('DEPLOY FIRMWARE TO NODES:', ', '.join([node_desc(node) for node in nodes]))
 
     if input('Proceed? (y/n) ').lower() != 'y':
         sys.exit(1)
 
     print('BUILDING FIRMWARE...')
-    if not build_firmware():
+    if not build_firmware(build_dir):
         print('Aborting: build failed!')
         sys.exit(1)
 
     print('UPLOADING FIRMWARE...')
-    upload_firmware(nodes)
+    upload_firmware(build_dir, nodes)
     print('DONE!')
 
 if __name__ == '__main__':

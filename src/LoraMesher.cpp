@@ -788,7 +788,6 @@ void LoraMesher::sendReliablePacket(uint16_t dst, uint8_t* payload, uint32_t pay
         }
         return;
     }
-    ESP_LOGI(LM_TAG, "Sending reliable payload with %d bytes to %X", (int) payloadSize, dst);
 
     // Get the Routing Table node of the destination
     RouteNode* node = RoutingTableService::findNode(dst);
@@ -855,6 +854,7 @@ void LoraMesher::sendReliablePacket(uint16_t dst, uint8_t* payload, uint32_t pay
     q_WSP->releaseInUse();
 
     //Send the first packet of the sequence (SYNC packet)
+    ESP_LOGI(LM_TAG, "Sending reliable payload with %d bytes to %X with sequence ID %d", (int) payloadSize, dst, seq_id);
     sendPacketSequence(listConfig, 0);
 
     // Notify the queueManager that a new sequence has been started
@@ -1150,6 +1150,7 @@ void LoraMesher::sendAckPacket(uint16_t destination, uint8_t seq_id, uint16_t se
 
     //Create the packet
     ControlPacket* cPacket = PacketService::createEmptyControlPacket(destination, getLocalAddress(), type, seq_id, seq_num, getConfig().maxHops);
+    ESP_LOGI(LM_TAG, "Sending ACK to %X for sequence %d", destination, seq_id);
 
     setPackedForSend(reinterpret_cast<Packet<uint8_t>*>(cPacket), DEFAULT_PRIORITY + 3);
 }

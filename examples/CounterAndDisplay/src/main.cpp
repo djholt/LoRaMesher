@@ -9,7 +9,7 @@
 
 LoraMesher& radio = LoraMesher::getInstance();
 
-#define PAYLOAD_CHARS 32
+#define PAYLOAD_CHARS 128
 #define FLOODING_MAX_HOPS 5
 
 uint32_t dataCounter = 0;
@@ -49,7 +49,7 @@ void sendUserPacket(uint16_t recipientAddr, char *recipientPayload) {
 
     strncpy(userPacket->message, recipientPayload, sizeof(userPacket->message)-1);
     userPacket->message[sizeof(userPacket->message)-1] = '\0';
-    userPacket->replyToAddr = 0;
+    userPacket->replyToAddr = radio.getLocalAddress();
     userPacket->requestId = 0;
     userPacket->responseId = 0;
     radio.createPacketAndSend(recipientAddr, userPacket, 1);

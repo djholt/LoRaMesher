@@ -15,8 +15,8 @@ LoraMesher& radio = LoraMesher::getInstance();
 uint32_t dataCounter = 0;
 struct dataPacket {
     uint16_t replyToAddr = 0;
-    uint32_t requestId = 0;
-    uint32_t responseId = 0;
+    uint8_t requestId = 0;
+    uint8_t responseId = 0;
     int32_t counter = -1;
     char message[PAYLOAD_CHARS];
 };
@@ -55,7 +55,7 @@ void sendUserPacket(uint16_t recipientAddr, char *recipientPayload) {
     radio.createPacketAndSend(recipientAddr, userPacket, 1);
 }
 
-void sendCarryPacket(uint16_t recipientAddr, uint16_t carrierAddr, uint32_t requestId, uint32_t responseId, char *recipientPayload) {
+void sendCarryPacket(uint16_t recipientAddr, uint16_t carrierAddr, uint8_t requestId, uint8_t responseId, char *recipientPayload) {
     Serial.printf("Sending packet to %X using carrier %X with payload: %s\n", recipientAddr, carrierAddr, recipientPayload);
     strncpy(userPacket->message, recipientPayload, sizeof(userPacket->message)-1);
     userPacket->message[sizeof(userPacket->message)-1] = '\0';

@@ -75,7 +75,7 @@ extern const char* LM_VERSION;
 //MAX payload size for hello packets = LM_MAX_PACKET_SIZE - 7 bytes of header
 //MAX payload size for data packets = LM_MAX_PACKET_SIZE - 7 bytes of header - 2 bytes of via
 //MAX payload size for reliable and large packets = LM_MAX_PACKET_SIZE - 7 bytes of header - 2 bytes of via - 3 of control packet
-#define LM_MAX_PACKET_SIZE 100
+#define LM_MAX_PACKET_SIZE 150 //100
 
 // Packet types
 #define NEED_ACK_P 0b00000011

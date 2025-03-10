@@ -5,14 +5,14 @@
 #include "entities/packets/DataPacket.h"
 #include <unordered_set>
 
-struct PacketHistoryRecord {
-    uint32_t id;
-    uint32_t sender;
-    uint32_t time;
+#define FLOOD_EXPIRE_TIME 600000 // 10 minutes in milliseconds
 
-    bool operator==(const PacketHistoryRecord &p) const {
-        return sender == p.sender && id == p.id;
-    }
+struct PacketHistoryRecord {
+    uint16_t sender;
+    uint32_t id;
+    uint32_t expiration;              // Time in ms when the record expires
+
+    bool operator==(const PacketHistoryRecord &p) const { return sender == p.sender && id == p.id; }
 };
 
 class PacketHistoryRecordHashFunction {
@@ -29,6 +29,7 @@ public:
 
 private:
     std::unordered_set<PacketHistoryRecord, PacketHistoryRecordHashFunction> packets;
+    void clearExpiredRecentPackets();
 };
 
 #endif // _LORAMESHER_PACKET_HISTORY_H

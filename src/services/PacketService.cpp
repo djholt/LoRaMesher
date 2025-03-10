@@ -1,8 +1,26 @@
 #include "PacketService.h"
 
+#define ID_COUNTER_MASK (UINT32_MAX >> 20) // mask to select the counter portion of the ID
+
 static uint32_t getPacketId() {
-    static uint32_t lastPacketId = 0;
-    return ++lastPacketId;
+    static uint32_t rollingPacketId; // Note: trying to keep this in noinit didn't help for working across reboots
+    static bool didInit = false;
+
+    if (!didInit) {
+        didInit = true;
+
+        // pick a random initial sequence number at boot (to prevent repeated reboots always starting at 0)
+        // Note: we mask the high order bit to ensure that we never pass a 'negative' number to random
+        rollingPacketId = esp_random() % 0x7FFFFFFF;
+        ESP_LOGI(LM_TAG, "Initial packet id %u", rollingPacketId);
+    }
+
+    rollingPacketId++;
+
+    rollingPacketId &= ID_COUNTER_MASK;                                    // Mask out the top 20 bits
+    uint32_t id = rollingPacketId | ((esp_random() %  0x7FFFFFF) << 12);    // top 20 bits
+    ESP_LOGV(LM_TAG, "Partially randomized packet id %u", id);
+    return id;
 }
 
 Packet<uint8_t>* PacketService::createEmptyPacket(size_t packetSize) {

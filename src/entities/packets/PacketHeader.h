@@ -11,7 +11,7 @@ public:
     uint16_t fwd = 0;
     uint8_t type = 0;
     //TODO: REMOVE THIS ID
-    uint16_t id;
+    uint32_t id;
     uint8_t packetSize = 0;
 
     /**

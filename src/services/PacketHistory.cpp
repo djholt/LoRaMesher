@@ -17,17 +17,20 @@ bool PacketHistory::wasSeen(const DataPacket *p) {
     auto result = packets.find(r);
     bool found = result != packets.end();
 
-    if (found && result->expiration < millis()) {
-        packets.erase(result); // Erase and pretend packet has not been seen recently
-        result = packets.end();
-        found = false;
-    }
     if (found) {
-        ESP_LOGV(LM_TAG, "Found existing packet record from %d with ID %d", result.sender, result.id);
-        packets.erase(result);
+        if (result->expiration < millis()) {
+            packets.erase(result);
+            found = false;
+        } else {
+            int old_id = result->id;
+            int old_sender = result->sender;
+            packets.erase(result);
+            ESP_LOGV(LM_TAG, "Found existing packet record from %d with ID %d", old_sender, old_id);
+        }
     }
     
     packets.insert(r);
+    ESP_LOGI(LM_TAG, "Packet history is of size: %d", packets.size());
 
     if (packets.size() > MAX_HISTORY_NODES * 0.9) {
         clearExpiredRecentPackets();
@@ -36,13 +39,15 @@ bool PacketHistory::wasSeen(const DataPacket *p) {
     return found;
 }
 
+
 void PacketHistory::clearExpiredRecentPackets() {
     ESP_LOGI(LM_TAG, "Removing expired records from packet history");
     for (auto record = packets.begin(); record != packets.end();) {
-        if (record->expiration >= millis()) {
+        if (record->expiration < millis()) {
             packets.erase(record);
         } else {
             ++record;
         }
     }
+    ESP_LOGI(LM_TAG, "Packet history after clearing: %d", packets.size());
 }

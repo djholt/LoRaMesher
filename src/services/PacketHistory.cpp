@@ -44,7 +44,7 @@ void PacketHistory::clearExpiredRecentPackets() {
     ESP_LOGI(LM_TAG, "Removing expired records from packet history");
     for (auto record = packets.begin(); record != packets.end();) {
         if (record->expiration < millis()) {
-            packets.erase(record);
+            record = packets.erase(record); // Correct way: erase() returns the next valid iterator
         } else {
             ++record;
         }

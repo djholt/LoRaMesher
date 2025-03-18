@@ -30,7 +30,6 @@ bool PacketHistory::wasSeen(const DataPacket *p) {
     }
     
     packets.insert(r);
-    ESP_LOGI(LM_TAG, "Packet history is of size: %d", packets.size());
 
     if (packets.size() > MAX_HISTORY_NODES * 0.9) {
         clearExpiredRecentPackets();
@@ -44,10 +43,10 @@ void PacketHistory::clearExpiredRecentPackets() {
     ESP_LOGI(LM_TAG, "Removing expired records from packet history");
     for (auto record = packets.begin(); record != packets.end();) {
         if (record->expiration < millis()) {
-            record = packets.erase(record); // Correct way: erase() returns the next valid iterator
+            record = packets.erase(record); 
         } else {
             ++record;
         }
     }
-    ESP_LOGI(LM_TAG, "Packet history after clearing: %d", packets.size());
+    ESP_LOGI(LM_TAG, "Packet history size after clearing: %d", packets.size());
 }

@@ -23,7 +23,9 @@ public:
     void changeSizeRouting(int size);
 
 private:
+#if ENABLE_DISPLAY
     Adafruit_SSD1306 display = Adafruit_SSD1306(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+#endif
     TaskHandle_t Display_TaskHandle = NULL;
 
     void changeLine(String str, int pos, int& x, int& minX, int size, bool& move);

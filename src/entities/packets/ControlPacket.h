@@ -10,6 +10,7 @@ class ControlPacket final: public RouteDataPacket {
 public:
     uint8_t seq_id = 0;
     uint16_t number = 0;
+    uint16_t carry_to = 0;
     uint8_t payload[];
 
     /**

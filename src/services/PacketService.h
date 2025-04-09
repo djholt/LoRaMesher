@@ -39,7 +39,7 @@ public:
      * @param payloadSize Payload size
      * @return ControlPacket*
      */
-    static ControlPacket* createControlPacket(uint16_t dst, uint16_t src, uint8_t type, uint8_t* payload, uint8_t payloadSize, uint8_t maxHops);
+    static ControlPacket* createControlPacket(uint16_t dst, uint16_t src, uint8_t type, uint8_t* payload, uint8_t payloadSize, uint16_t carry_to, uint8_t maxHops);
 
     /**
      * @brief Create a Empty Control Packet

@@ -9,7 +9,7 @@
 
 LoraMesher& radio = LoraMesher::getInstance();
 
-#define PAYLOAD_CHARS 32
+#define PAYLOAD_CHARS 150
 #define FLOODING_MAX_HOPS 5
 
 uint32_t dataCounter = 0;
@@ -55,14 +55,15 @@ void sendUserPacket(uint16_t recipientAddr, char *recipientPayload) {
     radio.createPacketAndSend(recipientAddr, userPacket, 1);
 }
 
-void sendCarryPacket(uint16_t recipientAddr, uint16_t carrierAddr, uint8_t requestId, uint8_t responseId, char *recipientPayload) {
+void sendCarrySequence(uint16_t recipientAddr, uint16_t carrierAddr, uint8_t requestId, uint8_t responseId, char *recipientPayload) {
     Serial.printf("Sending packet to %X using carrier %X with payload: %s\n", recipientAddr, carrierAddr, recipientPayload);
     strncpy(userPacket->message, recipientPayload, sizeof(userPacket->message)-1);
     userPacket->message[sizeof(userPacket->message)-1] = '\0';
     userPacket->replyToAddr = radio.getLocalAddress();
     userPacket->requestId = requestId;
     userPacket->responseId = responseId;
-    radio.createCarryPacketAndSend(recipientAddr, carrierAddr, userPacket, 1);
+
+    radio.sendCarry(carrierAddr, userPacket, 1, recipientAddr);
 }
 
 /**
@@ -103,7 +104,7 @@ void replyToDataPacket(AppPacket<dataPacket>* packet) {
             strncpy(&reply[strlen(reply)], data->message, sizeof(reply) - strlen(reply));
             reply[sizeof(reply)-1] = '\0';
 
-            sendCarryPacket(data->replyToAddr, BROADCAST_ADDR, 0, data->requestId, reply);
+            sendCarrySequence(data->replyToAddr, packet->src, 0, data->requestId, reply);
         }
     }
 }
@@ -352,6 +353,12 @@ void processSerialInput() {
         serialRxDataReceived = false;
 
         char *separator = strchr(serialRxBuffer, ':');
+        char *payload = nullptr;
+        if (separator != nullptr) {
+            *separator = '\0';
+            payload = separator + 1;
+            while (*payload == ' ') payload++;  // Trim leading whitespace
+        }
         if (separator != 0) {
             *separator = '\0';
             if (strcmp(serialRxBuffer, "allowadd") == 0) {
@@ -380,9 +387,14 @@ void processSerialInput() {
                 }
                 Serial.printf("Node role is now set to: %d\n", radio.getRole());
             } else if (serialRxBuffer[0] == '!') {
-                uint16_t recipientAddr = strtoul(serialRxBuffer + 1, NULL, 16);
-                char *recipientPayload = ++separator;
-                sendCarryPacket(recipientAddr, BROADCAST_ADDR, 1, 0, recipientPayload);
+                char *ptr = serialRxBuffer + 1;
+                // Parse recipient ID
+                uint16_t recipientAddr = strtoul(ptr, &ptr, 16);
+                while (*ptr == ' ') ptr++;
+                // Parse carrier ID
+                uint16_t carrierAddr = strtoul(ptr, &ptr, 16);
+                // Now use the payload we saved earlier
+                sendCarrySequence(recipientAddr, carrierAddr, 1, 0, payload);
             } else {
                 uint16_t recipientAddr = strtoul(serialRxBuffer, NULL, 16);
                 char *recipientPayload = ++separator;

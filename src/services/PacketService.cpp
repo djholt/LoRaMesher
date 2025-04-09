@@ -143,12 +143,13 @@ ControlPacket* PacketService::controlPacket(Packet<uint8_t>* p) {
     return reinterpret_cast<ControlPacket*>(p);
 }
 
-ControlPacket* PacketService::createControlPacket(uint16_t dst, uint16_t src, uint8_t type, uint8_t* payload, uint8_t payloadSize, uint8_t maxHops) {
+ControlPacket* PacketService::createControlPacket(uint16_t dst, uint16_t src, uint8_t type, uint8_t* payload, uint8_t payloadSize, uint16_t carry_to, uint8_t maxHops) {
     ControlPacket* packet = PacketFactory::createPacket<ControlPacket>(payload, payloadSize);
     packet->dst = dst;
     packet->src = src;
     packet->fwd = 0;
     packet->type = type;
+    packet->carry_to = carry_to;
     packet->hopLimit = maxHops;
     packet->hopStart = maxHops;
     packet->id = getPacketId();

@@ -317,6 +317,31 @@ public:
     }
 
     /**
+     * @brief Send the payload reliable.
+     * It will wait for an ACK back from the destination to send the next packet.
+     *
+     * @param dst destination address
+     * @param payload payload to send
+     * @param payloadSize payload size to be send in Bytes
+     * @param carry_to where the packet is to be carried
+     */
+     void sendCarryPacket(uint16_t dst, uint8_t* payload, uint32_t payloadSize, uint16_t carry_to);
+
+    /**
+     * @brief Send the payload reliable. It will wait for an ack of the destination.
+     *
+     * @tparam T
+     * @param dst Destination
+     * @param payload Payload of type T
+     * @param payloadSize Length of the payload in T
+     * @param carry_to where the packet is to be carried
+     */
+     template <typename T>
+     void sendCarry(uint16_t dst, T* payload, uint32_t payloadSize, uint16_t carry_to) {
+         sendCarryPacket(dst, reinterpret_cast<uint8_t*>(payload), sizeof(T) * payloadSize, carry_to);
+     }
+
+    /**
      * @brief Returns the number of packets inside the received packets queue
      *
      * @return size_t Received Queue Size
@@ -794,6 +819,17 @@ private:
     QueuePacket<ControlPacket>* getStartSequencePacketQueue(uint16_t destination, uint8_t seq_id, uint16_t num_packets);
 
     /**
+     * @brief Get the Start Sequence Packet Queue object
+     *
+     * @param destination destination address
+     * @param seq_id Sequence Id
+     * @param num_packets Number of packets of the sequence
+     * @param carry_to Node the packet is to be carried to
+     * @return QueuePacket<ControlPacket>*
+     */
+    QueuePacket<ControlPacket>* getStartCarrySequence(uint16_t destination, uint8_t seq_id, uint16_t num_packets, uint16_t carry_to, uint8_t* payload, uint8_t payloadSize);
+
+    /**
      * @brief Sends an ACK packet to the destination
      *
      * @param destination destination address
@@ -838,6 +874,13 @@ private:
     void processSyncPacket(uint16_t source, uint8_t seq_id, uint16_t seq_num);
 
     /**
+     * @brief Process a received synchronization packet
+     *
+     * @param pq Initial carry packet to be processed
+     */
+    void processCarryPacket(QueuePacket<ControlPacket>* pq);
+
+    /**
      * @brief Add the ack number to the respectively sequence and reset the timeout numbers
      *
      * @param source Source of the packet
@@ -879,6 +922,7 @@ private:
         //Identification is Sequence Id and Source address
         uint8_t seq_id; //Sequence Id
         uint16_t source; //Source Address
+        uint16_t carry_to; //If defined, the packet is to be carried to this node.
 
         uint16_t number{0}; //Number of packets of the sequence
         uint8_t firstAckReceived{0}; //If this value is set to 0, there has not been received any ack.
@@ -889,7 +933,7 @@ private:
         unsigned long calculatingRTT{0}; // Calculating RTT
         RouteNode* node; //Node of the routing table sequence
 
-        sequencePacketConfig(uint8_t seq_id, uint16_t source, uint16_t number, RouteNode* node): seq_id(seq_id), source(source), number(number), node(node) {};
+        sequencePacketConfig(uint8_t seq_id, uint16_t source, uint16_t number, RouteNode* node, uint16_t carry_to): seq_id(seq_id), source(source), number(number), node(node), carry_to(carry_to) {};
     };
 
     /**
@@ -942,6 +986,13 @@ private:
      * @param listConfig list configuration to join
      */
     void joinPacketsAndNotifyUser(listConfiguration* listConfig);
+    
+    /**
+     * @brief Join all the packets inside the list configuration and carry forward
+     *
+     * @param listConfig list configuration to join
+     */
+    void joinPacketsAndCarry(listConfiguration* listConfig);
 
     /**
      * @brief If executed it will reset the number of timeouts to 0 and reset the timeout

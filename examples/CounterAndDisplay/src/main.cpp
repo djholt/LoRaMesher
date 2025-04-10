@@ -2,10 +2,27 @@
 #include "LoraMesher.h"
 #include "display.h"
 
-// Heltec V3
-#define BOARD_LED   35
-#define LED_ON      HIGH
-#define LED_OFF     LOW
+#ifdef HELTEC_V3
+#define ENABLE_DISPLAY 1
+#define BOARD_LED      35
+#define LED_ON         HIGH
+#define LED_OFF        LOW
+#define LORA_CS        8
+#define LORA_RST       12
+#define LORA_IRQ       14
+#define LORA_IO1       13
+#endif
+
+#ifdef SEEED_XIAO
+#define ENABLE_DISPLAY 0
+#define BOARD_LED      21
+#define LED_ON         LOW
+#define LED_OFF        HIGH
+#define LORA_CS        12
+#define LORA_RST       13
+#define LORA_IRQ       1
+#define LORA_IO1       2
+#endif
 
 LoraMesher& radio = LoraMesher::getInstance();
 
@@ -190,11 +207,10 @@ void setupLoraMesher() {
     config.protocol = LoraMesher::RoutingProtocols::FLOODING_ROUTING;
     config.maxHops = FLOODING_MAX_HOPS;
 
-    // Heltec V3
-    config.loraCs  = 8;
-    config.loraRst = 12;
-    config.loraIrq = 14;
-    config.loraIo1 = 13;
+    config.loraCs  = LORA_CS;
+    config.loraRst = LORA_RST;
+    config.loraIrq = LORA_IRQ;
+    config.loraIo1 = LORA_IO1;
 
     config.module = LoraMesher::LoraModules::SX1262_MOD;
 
@@ -417,8 +433,9 @@ void processSerialInput() {
 }
 
 void setup() {
-    // Heltec V3
+#if ENABLE_DISPLAY
     Wire.begin(17, 18);
+#endif
 
     Serial.begin(115200);
     pinMode(BOARD_LED, OUTPUT); //setup pin as output for indicator LED

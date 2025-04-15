@@ -26,7 +26,7 @@
 
 LoraMesher& radio = LoraMesher::getInstance();
 
-#define PAYLOAD_CHARS 150
+#define PAYLOAD_CHARS 32
 #define FLOODING_MAX_HOPS 5
 
 uint32_t dataCounter = 0;

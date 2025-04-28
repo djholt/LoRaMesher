@@ -771,7 +771,7 @@ void LoraMesher::printHeaderPacket(Packet<uint8_t>* p, String title) {
         isControlPacket ? (reinterpret_cast<ControlPacket*>(p))->number : 0);
 }
 
-void LoraMesher::sendReliablePacket(uint16_t dst, uint8_t* payload, uint32_t payloadSize) {
+void LoraMesher::sendReliablePacket(uint16_t dst, uint8_t* payload, uint32_t payloadSize, uint16_t carry_to) {
     // Cannot send an empty packet
     if (payloadSize == 0)
         return;
@@ -782,97 +782,7 @@ void LoraMesher::sendReliablePacket(uint16_t dst, uint8_t* payload, uint32_t pay
             NetworkNode* nodes = RoutingTableService::getAllNetworkNodes();
             for (size_t i = 0; i < numOfNodes; i++) {
                 NetworkNode* node = &nodes[i];
-                sendReliablePacket(node->address, payload, payloadSize);
-            }
-            delete[] nodes;
-        }
-        return;
-    }
-
-    // Get the Routing Table node of the destination
-    RouteNode* node = RoutingTableService::findNode(dst);
-
-    if (node == nullptr) {
-        ESP_LOGI(LM_TAG, "Destination not found in the routing table");
-    }
-
-    //Generate a sequence Id for this list of packets
-    uint8_t seq_id = getSequenceId();
-
-    //Get the Type of the packet
-    uint8_t type = NEED_ACK_P | XL_DATA_P;
-
-    //Max payload size per packet
-    size_t maxPayloadSize = PacketService::getMaximumPayloadLength(type);
-
-    //Number of packets
-    uint16_t numOfPackets = payloadSize / maxPayloadSize + (payloadSize % maxPayloadSize > 0);
-
-    //Create a new Linked list to store the QueuePackets and the payload
-    LM_LinkedList<QueuePacket<ControlPacket>>* packetList = new LM_LinkedList<QueuePacket<ControlPacket>>();
-
-    //Add the SYNC configuration packet
-    packetList->Append(getStartSequencePacketQueue(dst, seq_id, numOfPackets));
-
-    for (uint16_t i = 1; i <= numOfPackets; i++) {
-        //Get the position of the payload
-        uint8_t* payloadToSend = reinterpret_cast<uint8_t*>((unsigned long) payload + ((i - 1) * maxPayloadSize));
-
-        //Get the payload Size in bytes
-        size_t payloadSizeToSend = maxPayloadSize;
-        if (i == numOfPackets)
-            payloadSizeToSend = payloadSize - (maxPayloadSize * (numOfPackets - 1));
-
-        ESP_LOGI(LM_TAG, "Payload Size: %d", payloadSizeToSend);
-
-        //Create a new packet with the previous payload
-        ControlPacket* cPacket = PacketService::createControlPacket(dst, getLocalAddress(), type, payloadToSend, payloadSizeToSend, 0, getConfig().maxHops);
-        cPacket->number = i;
-        cPacket->seq_id = seq_id;
-
-        //Create a packet queue
-        QueuePacket<ControlPacket>* pq = PacketQueueService::createQueuePacket(cPacket, DEFAULT_PRIORITY + 1, i);
-
-        //Append the packet queue in the linked list
-        packetList->Append(pq);
-    }
-
-    //Create the pair of configuration
-    listConfiguration* listConfig = new listConfiguration();
-    listConfig->config = new sequencePacketConfig(seq_id, dst, numOfPackets, node, 0);
-    listConfig->list = packetList;
-
-    // Set the RTT of the first packet of the sequence
-    listConfig->config->calculatingRTT = millis();
-
-    // Set the timeout of the first packet of the sequence
-    addTimeout(listConfig->config);
-
-    //Add dataList pair to the waiting send packets queue
-    q_WSP->setInUse();
-    q_WSP->Append(listConfig);
-    q_WSP->releaseInUse();
-
-    //Send the first packet of the sequence (SYNC packet)
-    ESP_LOGI(LM_TAG, "Sending reliable payload with %d bytes to %X with sequence ID %d", (int) payloadSize, dst, seq_id);
-    sendPacketSequence(listConfig, 0);
-
-    // Notify the queueManager that a new sequence has been started
-    notifyNewSequenceStarted();
-}
-
-void LoraMesher::sendCarryPacket(uint16_t dst, uint8_t* payload, uint32_t payloadSize, uint16_t carry_to) {
-    // Cannot send an empty packet
-    if (payloadSize == 0)
-        return;
-    if (dst == BROADCAST_ADDR) { // Do we want do allow broadcast request messages?
-        ESP_LOGW(LM_TAG, "Be aware of sending a reliable packet to the broadcast address");
-        size_t numOfNodes = RoutingTableService::routingTableSize();
-        if (numOfNodes > 0) {
-            NetworkNode* nodes = RoutingTableService::getAllNetworkNodes();
-            for (size_t i = 0; i < numOfNodes; i++) {
-                NetworkNode* node = &nodes[i];
-                sendCarryPacket(node->address, payload, payloadSize, carry_to);
+                sendReliablePacket(node->address, payload, payloadSize, carry_to);
             }
             delete[] nodes;
         }
@@ -903,17 +813,16 @@ void LoraMesher::sendCarryPacket(uint16_t dst, uint8_t* payload, uint32_t payloa
     //Create a new Linked list to store the QueuePackets and the payload
     LM_LinkedList<QueuePacket<ControlPacket>>* packetList = new LM_LinkedList<QueuePacket<ControlPacket>>();
 
-    //Put data in the initial (sync) packet
-    //////////////////////////////////////////////////////////////////
+    // Put data in the initial packet (sync or carry)
+    ////////////////////////////////////////////////////////////////////
     uint8_t* payloadToSend = payload;
     numOfPackets -= 1;
 
     size_t payloadSizeToSend = (payloadSize < maxPayloadSize) ? payloadSize : maxPayloadSize;
 
-    //Add the carry configuration packet
-    packetList->Append(getStartCarrySequence(dst, seq_id, numOfPackets, carry_to, payloadToSend, payloadSizeToSend));
-
-    //////////////////////////////////////////////////////////////////
+    // Add the configuration packet
+    packetList->Append(getStartSequencePacketQueue(dst, seq_id, numOfPackets, carry_to, payloadToSend, payloadSizeToSend));
+    ////////////////////////////////////////////////////////////////////
 
     for (uint16_t i = 1; i <= numOfPackets; i++) {
         //Get the position of the payload
@@ -955,7 +864,11 @@ void LoraMesher::sendCarryPacket(uint16_t dst, uint8_t* payload, uint32_t payloa
     q_WSP->releaseInUse();
 
     //Send the first packet of the sequence (SYNC packet)
-    ESP_LOGI(LM_TAG, "Sending carry payload with %d bytes to %X with sequence ID %d to be carried to %X", (int) payloadSize, dst, seq_id, carry_to);
+    if (carry_to) {
+        ESP_LOGI(LM_TAG, "Sending carry payload with %d bytes to %X with sequence ID %d to be carried to %X", (int) payloadSize, dst, seq_id, carry_to);
+    } else {
+        ESP_LOGI(LM_TAG, "Sending reliable payload with %d bytes to %X with sequence ID %d", (int) payloadSize, dst, seq_id);
+    }
     sendPacketSequence(listConfig, 0);
 
     // Notify the queueManager that a new sequence has been started
@@ -1034,16 +947,18 @@ void LoraMesher::processDataPacketForMe(QueuePacket<DataPacket>* pq) {
         ESP_LOGI(LM_TAG, "Lost Packet received");
         processLostPacket(p->src, cPacket->seq_id, cPacket->number);
     }
-    else if (PacketService::isCarryPacket(p->type)) {
+    else if (PacketService::isCarryPacket(p->type) && hasRole(ROLE_CARRIER)) {
         ESP_LOGI(LM_TAG, "Carry packet received");
-        processCarryPacket(reinterpret_cast<QueuePacket<ControlPacket>*>(pq));
+        if (processSyncPacket(reinterpret_cast<QueuePacket<ControlPacket>*>(pq))) {
+            deleteQueuePacket = false;
+        }
 
         needAck = false;
-        deleteQueuePacket = false;
     }
     else if (PacketService::isSyncPacket(p->type)) {
         ESP_LOGI(LM_TAG, "Synchronization Packet received");
-        processSyncPacket(p->src, cPacket->seq_id, cPacket->number);
+        processSyncPacket(reinterpret_cast<QueuePacket<ControlPacket>*>(pq));
+        deleteQueuePacket = false;
 
         needAck = false;
     }
@@ -1239,23 +1154,14 @@ void LoraMesher::notifyNewSequenceStarted() {
  * Large and Reliable payloads
  */
 
-QueuePacket<ControlPacket>* LoraMesher::getStartSequencePacketQueue(uint16_t destination, uint8_t seq_id, uint16_t num_packets) {
-    uint8_t type = SYNC_P | NEED_ACK_P | XL_DATA_P;
+QueuePacket<ControlPacket>* LoraMesher::getStartSequencePacketQueue(uint16_t destination, uint8_t seq_id, uint16_t num_packets, uint16_t carry_to, uint8_t* payload, uint8_t payloadSize) {
+    uint16_t type = NEED_ACK_P | XL_DATA_P;
+    if (carry_to) {
+        type |= CARRY_P;
+    } else {
+        type |= SYNC_P;
+    }
 
-    //Create the packet
-    ControlPacket* cPacket = PacketService::createEmptyControlPacket(destination, getLocalAddress(), type, seq_id, num_packets, getConfig().maxHops);
-
-    //Create a packet queue
-    return PacketQueueService::createQueuePacket(cPacket, DEFAULT_PRIORITY, 0);
-}
-
-/**
- * Carry packets
- */
-QueuePacket<ControlPacket>* LoraMesher::getStartCarrySequence(uint16_t destination, uint8_t seq_id, uint16_t num_packets, uint16_t carry_to, uint8_t* payload, uint8_t payloadSize) {
-    uint8_t type = CARRY_P | NEED_ACK_P | XL_DATA_P;
-
-    //Create the packet
     ControlPacket* cPacket = PacketService::createControlPacket(destination, getLocalAddress(), type, payload, payloadSize, carry_to, getConfig().maxHops);
     cPacket->number = num_packets;
     cPacket->seq_id = seq_id;
@@ -1382,85 +1288,13 @@ bool LoraMesher::processLargePayloadPacket(QueuePacket<ControlPacket>* pq) {
 
     //All packets has been arrived, join them and send to the user
     if (configList->config->lastAck == configList->config->number) {
-        if (configList->config->carry_to == 0) {
-            joinPacketsAndNotifyUser(configList);
-        } else {
-            joinPacketsAndCarry(configList);
-        }
-        return true;
+        joinPacketsAndForward(configList);
     }
 
     return true;
 }
 
-void LoraMesher::joinPacketsAndNotifyUser(listConfiguration* listConfig) {
-    ESP_LOGI(LM_TAG, "Joining packets seq_Id: %d Src: %X", listConfig->config->seq_id, listConfig->config->source);
-
-    LM_LinkedList<QueuePacket<ControlPacket>>* list = listConfig->list;
-
-    list->setInUse();
-    if (!list->moveToStart()) {
-        list->releaseInUse();
-        return;
-    }
-
-    //TODO: getPacketPayloadLength could be done when adding the packets inside the list
-    size_t payloadSize = 0;
-    size_t number = 1;
-
-    do {
-        ControlPacket* currentP = reinterpret_cast<ControlPacket*>(list->getCurrent()->packet);
-
-        if (number != (currentP->number))
-            //TODO: ORDER THE PACKETS if they are not ordered?
-            ESP_LOGE(LM_TAG, "Wrong packet order");
-
-        number++;
-        payloadSize += PacketService::getPacketPayloadLength(currentP);
-    } while (list->next());
-
-    //Move to start again
-    list->moveToStart();
-
-    ControlPacket* currentP = list->getCurrent()->packet;
-
-    uint32_t appPacketLength = sizeof(AppPacket<uint8_t>);
-
-    //Packet length = size of the packet + size of the payload
-    uint32_t packetLength = appPacketLength + payloadSize;
-
-    AppPacket<uint8_t>* p = static_cast<AppPacket<uint8_t>*>(pvPortMalloc(packetLength));
-
-    ESP_LOGI(LM_TAG, "Large Packet Packet length: %d Payload Size: %d", (int) packetLength, payloadSize);
-
-    if (p) {
-        //Copy the payload into the packet
-        unsigned long actualPayloadSizeDst = appPacketLength;
-
-        do {
-            currentP = list->getCurrent()->packet;
-
-            size_t actualPayloadSizeSrc = PacketService::getPacketPayloadLength(currentP);
-
-            memcpy(reinterpret_cast<void*>((unsigned long) p + (actualPayloadSizeDst)), currentP->payload, actualPayloadSizeSrc);
-            actualPayloadSizeDst += actualPayloadSizeSrc;
-        } while (list->next());
-    }
-
-    list->releaseInUse();
-
-    //Set values to the AppPacket
-    p->payloadSize = payloadSize;
-    p->src = listConfig->config->source;
-    p->dst = getLocalAddress();
-
-    //TODO: When finished, clear everything? Or maintain the config until timeout?
-    findAndClearLinkedList(q_WRP, listConfig);
-
-    notifyUserReceivedPacket(p);
-}
-
-void LoraMesher::joinPacketsAndCarry(listConfiguration* listConfig) {
+void LoraMesher::joinPacketsAndForward(listConfiguration* listConfig) {
     ESP_LOGI(LM_TAG, "Joining packets seq_Id: %d Src: %X", listConfig->config->seq_id, listConfig->config->source);
 
     LM_LinkedList<QueuePacket<ControlPacket>>* list = listConfig->list;
@@ -1521,11 +1355,17 @@ void LoraMesher::joinPacketsAndCarry(listConfiguration* listConfig) {
     p->src = listConfig->config->source;
     p->dst = getLocalAddress();
 
+    // Take note if we are carrying and to whom
+    uint16_t carry_to = listConfig->config->carry_to;
+
     //TODO: When finished, clear everything? Or maintain the config until timeout?
     findAndClearLinkedList(q_WRP, listConfig);
 
-    //Send the packet to the final destination
-    sendReliable(listConfig->config->carry_to, p->payload, p->payloadSize);
+    if (carry_to) {
+        sendReliable(carry_to, p->payload, p->payloadSize);
+    } else {
+        notifyUserReceivedPacket(p);
+    }
 }
 
 void LoraMesher::clearReliablePacketQueues() {
@@ -1562,44 +1402,7 @@ void LoraMesher::clearReliablePacketQueues() {
     queue->releaseInUse();
 }
 
-void LoraMesher::processSyncPacket(uint16_t source, uint8_t seq_id, uint16_t seq_num) {
-    //Check for repeated sequence lists
-    listConfiguration* listConfig = findSequenceList(q_WRP, seq_id, source);
-
-    if (listConfig == nullptr) {
-        // Get the Routing Table node of the destination
-        RouteNode* node = RoutingTableService::findNode(source);
-
-        if (node == nullptr) {
-            ESP_LOGW(LM_TAG, "Node not found in the routing table");
-        }
-
-        //Create the pair of configuration
-        listConfig = new listConfiguration();
-        listConfig->config = new sequencePacketConfig(seq_id, source, seq_num, node, 0);
-        listConfig->list = new LM_LinkedList<QueuePacket<ControlPacket>>();
-
-        // Starting to calculate RTT
-        actualizeRTT(listConfig->config);
-
-        //Add list configuration to the waiting received packets queue
-        q_WRP->setInUse();
-        q_WRP->Append(listConfig);
-        q_WRP->releaseInUse();
-
-        // Reset the timeout
-        addTimeout(listConfig->config);
-
-        // Notify the queueManager that a new sequence has been started
-        notifyNewSequenceStarted();
-
-        //Change the number to send the ack to the correct one
-        //cPacket->number in SYNC_P specify the number of packets and it needs to ACK the 0
-        sendAckPacket(source, seq_id, 0);
-    }
-}
-
-void LoraMesher::processCarryPacket(QueuePacket<ControlPacket>* pq) {
+bool LoraMesher::processSyncPacket(QueuePacket<ControlPacket>* pq) {
 
     //Extract packet data
     ControlPacket* cPacket = pq->packet;
@@ -1608,10 +1411,8 @@ void LoraMesher::processCarryPacket(QueuePacket<ControlPacket>* pq) {
     uint8_t seq_id = cPacket->seq_id;
     uint8_t seq_num = cPacket->number;
 
-    // We have the number of packets in the sequence, now set this packets number to zero for storage
+    // We have the number of packets in the sequence, now set our number to zero for storage
     pq->packet->number = 0;
-
-    ESP_LOGI(LM_TAG, "Carry packet has payload %d\n", (char*)cPacket->payload);
 
     //Check for repeated sequence lists
     listConfiguration* listConfig = findSequenceList(q_WRP, seq_id, source);
@@ -1653,9 +1454,12 @@ void LoraMesher::processCarryPacket(QueuePacket<ControlPacket>* pq) {
         sendAckPacket(source, seq_id, 0);
 
         if (seq_num == 0) { // We are a single reliable packet
-            joinPacketsAndCarry(listConfig);
+            joinPacketsAndForward(listConfig);
         }
+        return true;
     }
+
+    return false;
 }
 
 void LoraMesher::processLostPacket(uint16_t destination, uint8_t seq_id, uint16_t seq_num) {
